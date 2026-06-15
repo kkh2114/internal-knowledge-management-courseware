@@ -1,0 +1,3539 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>프로젝트 관리법 — 데이터 생애주기 관리법 · AX 기초세우기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+  :root{
+    --paper:#FAF8F3;
+    --paper-2:#F3EFE6;
+    --ink:#1C2128;
+    --ink-soft:#4A4F58;
+    --line:#DAD3C4;
+    --blueprint:#21456B;       /* 구조 · 단계 · 제목 */
+    --blueprint-deep:#163149;
+    --blueprint-tint:#E9F0F6;
+    --amber:#C2772A;           /* 강조 · 태그 · 지시 */
+    --amber-tint:#FBEFDD;
+    --approve:#2F6B4F;         /* 완료 · 검수 도장 */
+    --approve-tint:#E5F0EA;
+    --danger:#B23A2E;
+    --danger-tint:#FAE8E5;
+    --shadow:0 1px 0 rgba(28,33,40,.04), 0 12px 28px -18px rgba(22,49,73,.4);
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+    --sans:"Pretendard",system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--paper);
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    letter-spacing:-.01em;
+  }
+  ::selection{background:var(--amber-tint);}
+
+  /* ---------- sticky header / 버전 게이지 ---------- */
+  .topbar{
+    position:sticky; top:0; z-index:50;
+    background:rgba(250,248,243,.86);
+    backdrop-filter:saturate(140%) blur(10px);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar__in{
+    max-width:880px; margin:0 auto; padding:11px 22px;
+    display:flex; align-items:center; gap:16px;
+  }
+  .topbar__id{
+    font-family:var(--mono); font-size:11px; font-weight:700;
+    color:var(--blueprint); letter-spacing:.04em; white-space:nowrap;
+  }
+  @media(max-width:600px){ .topbar__id{display:none;} }
+  .gauge{flex:1; min-width:0;}
+  .gauge__meta{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-family:var(--mono); font-size:11px; color:var(--ink-soft); margin-bottom:5px;
+  }
+  .gauge__pct{color:var(--approve); font-weight:700;}
+  .gauge__track{
+    height:7px; background:var(--paper-2);
+    border:1px solid var(--line); border-radius:999px; overflow:hidden;
+  }
+  .gauge__fill{
+    height:100%; width:0%;
+    background:linear-gradient(90deg,var(--blueprint),var(--approve));
+    border-radius:999px; transition:width .5s cubic-bezier(.22,1,.36,1);
+  }
+  .btn-reset{
+    font-family:var(--mono); font-size:10.5px; color:var(--ink-soft);
+    background:none; border:1px solid var(--line); border-radius:7px;
+    padding:5px 9px; cursor:pointer; white-space:nowrap; transition:.15s;
+  }
+  .btn-reset:hover{color:var(--danger); border-color:var(--danger);}
+
+  /* ---------- layout ---------- */
+  .wrap{max-width:880px; margin:0 auto; padding:0 22px;}
+
+  /* ---------- hero — 재설계 ---------- */
+  .hero{
+    position:relative; overflow:hidden;
+    padding:48px 22px 52px;
+    border-bottom:1px solid var(--line);
+    background:var(--paper);
+  }
+  /* 배경 그리드 */
+  .hero__grid{
+    position:absolute; inset:0; opacity:.35; pointer-events:none;
+    background-image:
+      linear-gradient(var(--line) 1px,transparent 1px),
+      linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:32px 32px;
+    -webkit-mask-image:radial-gradient(ellipse 140% 100% at 80% 0%,#000 0%,transparent 68%);
+            mask-image:radial-gradient(ellipse 140% 100% at 80% 0%,#000 0%,transparent 68%);
+  }
+  .hero__in{position:relative; max-width:836px; margin:0 auto;}
+
+  /* L1 — 브레드크럼 (최상단 위치 표시) */
+  .crumb{
+    display:flex; flex-wrap:wrap; align-items:center; gap:6px;
+    font-family:var(--mono); font-size:11px; font-weight:700;
+    margin-bottom:20px; letter-spacing:.02em;
+  }
+  .crumb .root{color:var(--ink-soft);}
+  .crumb .chap{color:var(--amber);}
+  .crumb .sep{color:var(--line); font-size:13px;}
+  .crumb .here{
+    color:#fff; background:var(--blueprint);
+    border-radius:6px; padding:2px 9px; font-size:11.5px;
+  }
+
+  /* L2 — 교안 아이덴티티 배지 */
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:11.5px; font-weight:700;
+    color:var(--blueprint); letter-spacing:.04em;
+    border:1.5px solid var(--blueprint); border-radius:999px;
+    padding:5px 14px; background:#fff;
+    margin-bottom:16px;
+  }
+  .eyebrow .dot{width:7px; height:7px; border-radius:50%; background:var(--amber); flex:none;}
+
+  /* L3 — 대제목 */
+  h1.hero__title{
+    font-size:clamp(32px,6vw,58px);
+    font-weight:900; line-height:1.08; letter-spacing:-.035em;
+    margin:0 0 6px; color:var(--ink);
+  }
+  .hero__title .kicker{
+    display:block;
+    font-family:var(--mono); font-size:clamp(12px,1.4vw,14px);
+    font-weight:700; color:var(--ink-soft); letter-spacing:.06em;
+    text-transform:uppercase; margin-bottom:10px;
+  }
+  .hero__title .line1{
+    display:block; color:var(--ink-soft);
+    font-size:clamp(20px,3.6vw,34px); font-weight:700;
+    letter-spacing:-.02em; margin-bottom:2px;
+  }
+  .hero__title .line2{
+    display:block; color:var(--blueprint);
+    font-size:clamp(32px,6vw,58px); font-weight:900;
+  }
+  .hero__title .line2 em{
+    font-style:normal; color:var(--ink);
+  }
+
+  /* L4 — 3단원 플로우 비주얼 */
+  .hero__flow{
+    display:flex; flex-wrap:wrap; align-items:stretch;
+    gap:0; margin:28px 0 0;
+    border:1.5px solid var(--line); border-radius:14px; overflow:hidden;
+    background:#fff; box-shadow:var(--shadow);
+  }
+  .hf-step{
+    flex:1; min-width:160px; padding:16px 18px;
+    border-right:1px solid var(--line); position:relative;
+  }
+  .hf-step:last-child{border-right:none;}
+  .hf-step__num{
+    font-family:var(--mono); font-size:10.5px; font-weight:800;
+    color:#fff; border-radius:5px; padding:2px 7px;
+    display:inline-block; margin-bottom:8px; letter-spacing:.04em;
+  }
+  .hf-step:nth-child(1) .hf-step__num{background:var(--blueprint);}
+  .hf-step:nth-child(2) .hf-step__num{background:var(--amber);}
+  .hf-step:nth-child(3) .hf-step__num{background:#7B52AB;}
+  .hf-step__t{
+    font-size:14.5px; font-weight:800; color:var(--ink);
+    letter-spacing:-.01em; margin:0 0 4px;
+  }
+  .hf-step__d{font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:0;}
+  .hf-step__range{
+    font-family:var(--mono); font-size:10px; font-weight:700;
+    color:var(--ink-soft); margin-top:8px; display:block;
+  }
+  /* 화살표 구분선 */
+  .hf-arrow{
+    flex:none; width:28px; display:flex; align-items:center; justify-content:center;
+    font-size:14px; color:var(--line); background:#fff;
+    border-right:1px solid var(--line);
+  }
+  @media(max-width:600px){
+    .hero__flow{flex-direction:column;}
+    .hf-step{border-right:none; border-bottom:1px solid var(--line);}
+    .hf-step:last-child{border-bottom:none;}
+    .hf-arrow{display:none;}
+  }
+
+  /* L5 — 핵심 속성 칩 */
+  .principles{display:flex; flex-wrap:wrap; gap:8px; margin-top:22px;}
+  .chip{
+    display:inline-flex; align-items:center; gap:7px;
+    background:#fff; border:1px solid var(--line); border-radius:9px;
+    padding:7px 13px; font-size:13px; font-weight:600; color:var(--ink-soft);
+    box-shadow:var(--shadow);
+  }
+  .chip b{color:var(--blueprint); font-weight:800;}
+  .chip .ci{font-size:15px;}
+
+  /* L6 — 사용법 안내 */
+  .howto{
+    margin:26px 0 0; padding:15px 18px;
+    background:var(--amber-tint); border:1px solid #EAD2AE;
+    border-radius:12px; font-size:13.5px; color:#6B4A1C; line-height:1.65;
+  }
+  .howto b{color:#7A4E12;}
+
+  /* 챕터 내 섹션 맵 */
+  .secmap{
+    margin-top:22px; padding:14px 18px;
+    background:#fff; border:1px solid var(--line);
+    border-radius:12px; box-shadow:var(--shadow);
+  }
+  .secmap__t{
+    font-family:var(--mono); font-size:10.5px; font-weight:700; color:var(--ink-soft);
+    letter-spacing:.03em; margin-bottom:10px;
+  }
+  .secmap__t b{color:var(--amber);}
+  .secmap__row{display:flex; flex-wrap:wrap; gap:7px;}
+  .sec{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12.5px; font-weight:700; border-radius:8px; padding:6px 11px;
+    border:1px solid var(--line); background:var(--paper); color:var(--ink-soft);
+  }
+  .sec .no{font-family:var(--mono); font-size:10.5px;}
+  .sec.cur{background:var(--blueprint); border-color:var(--blueprint); color:#fff;}
+  .sec.cur .no{color:#BBD2E6;}
+  .sec.soon{border-style:dashed; color:#A79E8C; background:transparent;}
+
+  /* 더 이상 쓰지 않지만 혹시 남아있는 옛 스타일 무력화 */
+  h1 .strike{
+    color:var(--ink-soft); text-decoration:line-through;
+    text-decoration-color:var(--danger); text-decoration-thickness:3px;
+    font-family:var(--mono); font-size:.82em; font-weight:700;
+  }
+  h1 .hl{color:var(--blueprint);}
+  .hero__sub{
+    font-size:clamp(14px,2vw,16px); color:var(--ink-soft);
+    max-width:640px; margin:16px 0 0; line-height:1.7;
+  }
+
+  /* ---------- stage ---------- */
+  .stage{padding:46px 0 8px; border-bottom:1px dashed var(--line);}
+  .stage:last-of-type{border-bottom:none;}
+  .stage__head{display:flex; align-items:center; gap:16px; margin-bottom:8px;}
+  .stage__num{
+    flex:none; width:54px; height:54px; display:grid; place-items:center;
+    font-family:var(--mono); font-size:22px; font-weight:700; color:#fff;
+    background:var(--blueprint); border-radius:13px;
+    box-shadow:var(--shadow); position:relative;
+  }
+  .stage__num::after{
+    content:attr(data-once); position:absolute; bottom:-7px; right:-7px;
+    font-family:var(--mono); font-size:8.5px; font-weight:700; color:var(--blueprint);
+    background:#fff; border:1px solid var(--blueprint); border-radius:5px; padding:1px 4px;
+  }
+  .stage__t{margin:0;}
+  .stage__kicker{
+    font-family:var(--mono); font-size:11.5px; font-weight:700;
+    color:var(--amber); letter-spacing:.08em; text-transform:uppercase;
+  }
+  .stage__name{font-size:23px; font-weight:800; letter-spacing:-.02em; margin:1px 0 0;}
+  .stage__desc{color:var(--ink-soft); font-size:14.5px; margin:6px 0 22px; padding-left:70px;}
+  @media(max-width:560px){ .stage__desc{padding-left:0;} }
+
+  /* ---------- task card ---------- */
+  .task{
+    background:#fff; border:1px solid var(--line); border-radius:14px;
+    margin:14px 0; box-shadow:var(--shadow); overflow:hidden;
+    transition:border-color .2s, background .2s;
+  }
+  .task.done{border-color:var(--approve); background:var(--approve-tint);}
+  .task__top{display:flex; gap:14px; padding:18px 20px; align-items:flex-start;}
+  .check{
+    flex:none; width:26px; height:26px; margin-top:1px;
+    border:2px solid var(--blueprint); border-radius:8px;
+    background:#fff; cursor:pointer; display:grid; place-items:center;
+    transition:.18s; position:relative;
+  }
+  .check:hover{background:var(--blueprint-tint);}
+  .check svg{width:15px; height:15px; opacity:0; transform:scale(.5); transition:.18s;}
+  .task.done .check{background:var(--approve); border-color:var(--approve);}
+  .task.done .check svg{opacity:1; transform:scale(1);}
+  .check:focus-visible{outline:3px solid var(--amber); outline-offset:2px;}
+  .task__body{flex:1; min-width:0;}
+  .task__label{
+    font-family:var(--mono); font-size:11px; font-weight:700; color:var(--amber);
+    letter-spacing:.04em;
+  }
+  .task.done .task__label{color:var(--approve);}
+  .task__title{font-size:16.5px; font-weight:700; margin:2px 0 0; letter-spacing:-.01em;}
+  .task.done .task__title{text-decoration:line-through; text-decoration-color:var(--approve); color:var(--ink-soft);}
+  .task__detail{padding:0 20px 18px 60px; font-size:14.5px; color:var(--ink-soft);}
+  @media(max-width:560px){ .task__detail{padding-left:20px;} }
+  .task__detail ol,.task__detail ul{margin:8px 0; padding-left:20px;}
+  .task__detail li{margin:4px 0;}
+  .task__detail b{color:var(--ink);}
+  code.kbd,code.path{
+    font-family:var(--mono); font-size:.86em;
+    background:var(--paper-2); border:1px solid var(--line);
+    border-radius:5px; padding:1px 6px; color:var(--blueprint-deep);
+    word-break:break-all;
+  }
+
+  /* ---------- prompt slip (직원 프롬프트 = AI 직원 업무지시서) ---------- */
+  .slip{
+    margin:14px 0 4px; border:1px solid var(--blueprint);
+    border-radius:12px; overflow:hidden; background:#fff;
+  }
+  .slip__bar{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:var(--blueprint); color:#fff; padding:8px 12px;
+  }
+  .slip__from{font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.02em;}
+  .slip__copy{
+    font-family:var(--mono); font-size:11px; font-weight:700;
+    background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.4);
+    border-radius:7px; padding:4px 10px; cursor:pointer; transition:.15s; white-space:nowrap;
+  }
+  .slip__copy:hover{background:rgba(255,255,255,.28);}
+  .slip__copy.ok{background:#fff; color:var(--blueprint); border-color:#fff;}
+  .slip__text{
+    margin:0; padding:14px 16px; font-family:var(--mono); font-size:13px;
+    line-height:1.7; color:var(--ink); white-space:pre-wrap; word-break:break-word;
+  }
+  .reply{
+    margin:10px 0 2px; padding:11px 14px; padding-left:38px; position:relative;
+    background:var(--blueprint-tint); border:1px solid #CFE0EE; border-radius:10px;
+    font-size:13px; color:var(--blueprint-deep); line-height:1.6;
+  }
+  .reply::before{content:"🤖"; position:absolute; left:12px; top:10px; font-size:14px;}
+  .reply b{color:var(--blueprint);}
+  /* 에이전트가 돌려주는 바로가기 링크 칩 */
+  .golink{
+    display:inline-flex; align-items:center; gap:7px; margin-top:8px;
+    font-family:var(--mono); font-size:11.5px; font-weight:700; color:var(--blueprint);
+    background:#fff; border:1px solid var(--blueprint); border-radius:8px;
+    padding:5px 10px; text-decoration:none; word-break:break-all; transition:.15s;
+  }
+  .golink:hover{background:#fff; box-shadow:var(--shadow);}
+  .golink .arr{opacity:.6;}
+
+  /* 터미널 명령어 블록 (복사 가능) */
+  .cmdblock{
+    margin:10px 0 6px; border-radius:11px; overflow:hidden;
+    border:1px solid #2A3A4A; background:var(--ink);
+  }
+  .cmdblock__bar{
+    display:flex; align-items:center; justify-content:space-between; gap:10px;
+    background:#2A3A4A; padding:7px 12px;
+  }
+  .cmdblock__label{
+    display:flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:11px; font-weight:700; color:#8AACC8; letter-spacing:.03em;
+  }
+  .cmdblock__label .dot-r{width:9px;height:9px;border-radius:50%;background:#E74C3C;display:inline-block;}
+  .cmdblock__label .dot-y{width:9px;height:9px;border-radius:50%;background:#F39C12;display:inline-block;}
+  .cmdblock__label .dot-g{width:9px;height:9px;border-radius:50%;background:#2ECC71;display:inline-block;}
+  .cmdblock__copy{
+    font-family:var(--mono); font-size:11px; font-weight:700;
+    background:rgba(255,255,255,.1); color:#8AACC8; border:1px solid rgba(138,172,200,.35);
+    border-radius:6px; padding:3px 9px; cursor:pointer; transition:.15s; white-space:nowrap;
+  }
+  .cmdblock__copy:hover{background:rgba(255,255,255,.18); color:#fff;}
+  .cmdblock__copy.ok{background:var(--approve); color:#fff; border-color:var(--approve);}
+  .cmdblock__code{
+    margin:0; padding:14px 16px; font-family:var(--mono); font-size:13.5px;
+    line-height:1.9; color:#E8EEF2; white-space:pre; overflow-x:auto;
+  }
+  .cmdblock__code .prompt{color:#5A8A6A; user-select:none;}
+  .cmdblock__code .cmd{color:#80C8FF;}
+  .cmdblock__code .flag{color:#FFD580;}
+  .cmdblock__code .val{color:#B5EAD7;}
+
+  /* callouts */
+  .note{margin:12px 0; padding:12px 14px 12px 40px; position:relative; border-radius:10px; font-size:13.5px; line-height:1.6;}
+  .note::before{position:absolute; left:13px; top:11px; font-size:15px;}
+  .note.warn{background:var(--danger-tint); border:1px solid #EFC9C3; color:#6E241C;}
+  .note.warn::before{content:"⚠️";}
+  .note.warn b{color:var(--danger);}
+  .note.tip{background:var(--approve-tint); border:1px solid #C7E0D2; color:#234C3A;}
+  .note.tip::before{content:"💡";}
+  .note.tip b{color:var(--approve);}
+
+  /* ---------- 유형 선택 (분기) ---------- */
+  .choose{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:8px 0 16px;}
+  @media(max-width:560px){ .choose{grid-template-columns:1fr;} }
+  .opt{
+    text-align:left; cursor:pointer; background:#fff;
+    border:1.5px solid var(--line); border-radius:13px; padding:16px;
+    transition:.18s; box-shadow:var(--shadow);
+  }
+  .opt:hover{border-color:var(--blueprint);}
+  .opt.active{border-color:var(--blueprint); background:var(--blueprint-tint);}
+  .opt:focus-visible{outline:3px solid var(--amber); outline-offset:2px;}
+  .opt__tag{font-family:var(--mono); font-size:11px; font-weight:700; color:var(--amber); letter-spacing:.04em;}
+  .opt.active .opt__tag{color:var(--blueprint);}
+  .opt__name{font-size:16px; font-weight:800; margin:4px 0 6px;}
+  .opt__name .lv{
+    font-family:var(--mono); font-size:10px; font-weight:700; color:#fff;
+    background:var(--ink-soft); border-radius:5px; padding:2px 6px; margin-left:6px; vertical-align:middle;
+  }
+  .opt.adv .opt__name .lv{background:var(--amber);}
+  .opt__d{font-size:13px; color:var(--ink-soft); line-height:1.55;}
+  .pathbox{display:none;} .pathbox.show{display:block; animation:fade .35s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+
+  /* tag legend */
+  .tags{display:grid; gap:8px; margin:10px 0;}
+  .tagrow{display:flex; align-items:center; gap:12px; font-size:13.5px;}
+  .tagchip{
+    flex:none; font-family:var(--mono); font-size:12px; font-weight:700;
+    color:#fff; border-radius:6px; padding:3px 9px; min-width:54px; text-align:center;
+  }
+  .tagchip.t1{background:var(--blueprint);}
+  .tagchip.t2{background:var(--amber);}
+  .tagchip.t3{background:var(--approve);}
+
+  pre.wiki{
+    margin:6px 0; padding:14px 16px; background:var(--ink); color:#E8EEF2;
+    border-radius:11px; font-family:var(--mono); font-size:12.5px; line-height:1.7;
+    overflow-x:auto; white-space:pre;
+  }
+  pre.wiki .b{color:var(--amber);}
+
+  /* ---------- completion stamp ---------- */
+  .finale{
+    text-align:center; padding:54px 22px 70px;
+  }
+  .seal{
+    width:148px; height:148px; margin:0 auto 22px; position:relative;
+    border:3px solid var(--line); border-radius:50%;
+    display:grid; place-items:center; color:var(--line);
+    transition:.5s; transform:rotate(-8deg);
+  }
+  .seal .seal__t{font-family:var(--mono); font-weight:700; line-height:1.3; font-size:13px; letter-spacing:.05em;}
+  .seal .seal__big{font-size:26px; font-weight:800; display:block; margin-top:2px;}
+  .finale.done .seal{
+    border-color:var(--approve); color:var(--approve);
+    box-shadow:0 0 0 6px var(--approve-tint);
+    animation:stamp .5s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes stamp{0%{transform:rotate(-8deg) scale(1.7); opacity:0;} 60%{transform:rotate(-10deg) scale(.94);} 100%{transform:rotate(-8deg) scale(1); opacity:1;}}
+  .finale__msg{font-size:15px; color:var(--ink-soft);}
+  .finale__msg b{color:var(--approve);}
+  .finale.todo .finale__msg b{color:var(--blueprint);}
+
+  footer{
+    border-top:1px solid var(--line); padding:24px 22px 40px;
+    text-align:center; font-family:var(--mono); font-size:11px; color:var(--ink-soft);
+  }
+
+  /* ---------- 커밋 메시지 예시 테이블 ---------- */
+  .eg-wrap{
+    margin:16px 0 4px; border:1px solid var(--line);
+    border-radius:13px; overflow:hidden; background:#fff;
+  }
+  .eg-head{
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+    padding:11px 16px; background:var(--paper-2); border-bottom:1px solid var(--line);
+  }
+  .eg-title{font-size:13px; font-weight:700; color:var(--ink);}
+  .eg-legend{
+    display:flex; align-items:center; gap:10px;
+    font-family:var(--mono); font-size:11px; color:var(--ink-soft);
+  }
+  .eg-ok-dot,.eg-bad-dot{
+    display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:3px;
+  }
+  .eg-ok-dot{background:var(--approve);}
+  .eg-bad-dot{background:var(--danger);}
+
+  .eg-section{
+    padding:8px 16px 5px;
+    background:var(--paper); border-bottom:1px solid var(--line);
+  }
+
+  .eg-row{
+    display:grid; grid-template-columns:24px 1fr auto;
+    align-items:start; gap:10px;
+    padding:9px 16px; border-bottom:1px solid var(--paper-2);
+    transition:background .15s;
+  }
+  .eg-row:last-child{border-bottom:none;}
+  .eg-row.ok{background:#fff;}
+  .eg-row.ok:hover{background:var(--approve-tint);}
+  .eg-row.bad{background:var(--danger-tint);}
+  .eg-row.bad:hover{background:#F5DEDA;}
+
+  .eg-mark{
+    font-size:14px; font-weight:900; line-height:1.7; text-align:center;
+  }
+  .eg-mark.ok{color:var(--approve);}
+  .eg-mark.bad{color:var(--danger);}
+
+  code.eg-msg{
+    font-family:var(--mono); font-size:12.5px; line-height:1.7;
+    color:var(--ink); word-break:break-all;
+    background:none; border:none; padding:0;
+  }
+  .eg-row.bad code.eg-msg{color:var(--danger); text-decoration:line-through; text-decoration-color:var(--danger);}
+
+  .eg-cnt{
+    font-family:var(--mono); font-size:11px; font-weight:700; white-space:nowrap;
+    color:var(--approve); background:var(--approve-tint);
+    border:1px solid #C7E0D2; border-radius:6px; padding:2px 7px; line-height:1.7;
+    margin-top:2px;
+  }
+  .eg-reason{
+    font-size:11.5px; color:var(--danger); font-weight:600; line-height:1.6;
+    padding-top:2px; grid-column:2 / -1; margin-left:0;
+  }
+  .eg-row.bad{grid-template-columns:24px 1fr; grid-template-rows:auto auto;}
+  .eg-row.bad code.eg-msg{grid-column:2;}
+  .eg-row.bad .eg-reason{grid-column:2; margin-top:2px;}
+
+  @media(max-width:560px){
+    .eg-row.ok{grid-template-columns:24px 1fr; grid-template-rows:auto auto;}
+    .eg-cnt{grid-column:2; justify-self:start; margin-top:2px;}
+  }
+    *{animation:none !important; transition:none !important; scroll-behavior:auto;}
+  }
+
+  /* ---------- 전 직원 수칙 블록 ---------- */
+  .rules{
+    margin:40px 0;
+    border:2px solid var(--danger);
+    border-radius:16px; overflow:hidden;
+    box-shadow:0 0 0 4px var(--danger-tint), var(--shadow);
+  }
+  .rules__head{
+    display:flex; align-items:center; gap:13px;
+    background:var(--danger); color:#fff; padding:14px 20px;
+  }
+  .rules__icon{font-size:20px; line-height:1; flex:none;}
+  .rules__htitle{
+    font-size:15.5px; font-weight:800; letter-spacing:-.01em; margin:0;
+  }
+  .rules__sub{
+    font-family:var(--mono); font-size:11px; font-weight:700; color:rgba(255,255,255,.7);
+    margin-top:2px; letter-spacing:.02em;
+  }
+  .rules__body{
+    background:#fff; padding:6px 0;
+  }
+  .rule{
+    display:flex; gap:0; align-items:stretch;
+    border-bottom:1px solid var(--danger-tint);
+  }
+  .rule:last-child{border-bottom:none;}
+  .rule__num{
+    flex:none; width:52px; display:flex; align-items:center; justify-content:center;
+    font-family:var(--mono); font-size:22px; font-weight:900; color:var(--danger);
+    background:var(--danger-tint); letter-spacing:-.02em;
+  }
+  .rule__content{padding:16px 18px;}
+  .rule__t{
+    font-size:15px; font-weight:800; color:var(--danger); margin:0 0 5px;
+    letter-spacing:-.01em;
+  }
+  .rule__d{font-size:13.5px; color:var(--ink); line-height:1.65; margin:0;}
+  .rule__d b{color:var(--ink);}
+  .rule__d code.kbd{
+    font-family:var(--mono); font-size:.86em;
+    background:var(--paper-2); border:1px solid var(--line);
+    border-radius:5px; padding:1px 6px; color:var(--blueprint-deep);
+  }
+  /* gitignore 프롬프트 slip 안에서 쓸 소형 인라인 칩 */
+  .rule__agent{
+    display:inline-flex; align-items:center; gap:6px; margin-top:9px;
+    font-family:var(--mono); font-size:11.5px; font-weight:700;
+    background:var(--blueprint-tint); border:1px solid var(--blueprint);
+    border-radius:7px; padding:5px 10px; color:var(--blueprint-deep);
+    cursor:pointer; transition:.15s;
+  }
+  .rule__agent:hover{background:#fff;}
+  .rule__agent.ok{background:#fff; color:var(--approve); border-color:var(--approve);}
+
+  /* ---------- OS 토글 — topbar 통합 sticky ---------- */
+  /* os-bar는 topbar 바로 아래 sticky 두 번째 줄로 동작 */
+  .os-bar{
+    position:sticky; top:51px; z-index:49;   /* topbar 높이 바로 아래 */
+    background:var(--blueprint-deep);
+    border-bottom:2px solid rgba(255,255,255,.08);
+    box-shadow:0 2px 12px -4px rgba(22,49,73,.45);
+  }
+  .os-bar__in{
+    max-width:880px; margin:0 auto; padding:8px 22px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .os-bar__label{
+    font-family:var(--mono); font-size:10.5px; font-weight:700;
+    color:rgba(255,255,255,.45); white-space:nowrap; letter-spacing:.03em;
+  }
+  .os-tabs{display:flex; gap:7px; align-items:center;}
+  .os-tab{
+    display:inline-flex; align-items:center; gap:7px;
+    font-family:var(--mono); font-size:12.5px; font-weight:800;
+    padding:6px 16px; border-radius:9px; cursor:pointer; transition:.18s;
+    border:1.5px solid rgba(255,255,255,.18);
+    background:rgba(255,255,255,.07); color:rgba(255,255,255,.5);
+    letter-spacing:.02em;
+  }
+  .os-tab:hover{background:rgba(255,255,255,.16); color:#fff; border-color:rgba(255,255,255,.4);}
+  .os-tab.win-btn.active{background:#0078D4; border-color:#3A9FE8; color:#fff; box-shadow:0 0 0 3px rgba(0,120,212,.3);}
+  .os-tab.mac-btn.active{background:#636366; border-color:#8E8E93; color:#fff; box-shadow:0 0 0 3px rgba(99,99,102,.3);}
+  .os-tab .ico{font-size:15px;}
+  .os-note{
+    font-family:var(--mono); font-size:10.5px; color:rgba(255,255,255,.35);
+    margin-left:2px;
+  }
+  @media(max-width:680px){ .os-note{display:none;} }
+  @media(max-width:480px){ .os-bar__label{display:none;} }
+
+  /* OS 분기 표시/숨김 */
+  .win-only, .mac-only{ display:none; }
+  body.os-win .win-only{ display:block; }
+  body.os-mac .mac-only{ display:block; }
+  body.os-win .win-only.inline,
+  body.os-mac .mac-only.inline{ display:inline; }
+  body.os-win .win-only.iflex,
+  body.os-mac .mac-only.iflex{ display:inline-flex; }
+
+  /* OS 분기 인라인 코드 (단축키 등) */
+  .oskey{
+    font-family:var(--mono); font-size:.86em;
+    background:var(--paper-2); border:1px solid var(--line);
+    border-radius:5px; padding:1px 6px; color:var(--blueprint-deep);
+  }
+
+  /* OS 배지 — 터미널 바 안, 더 크고 선명하게 */
+  .os-badge{
+    display:inline-flex; align-items:center;
+    font-family:var(--mono); font-size:11px; font-weight:800; letter-spacing:.06em;
+    border-radius:6px; padding:2px 8px; vertical-align:middle; margin-left:8px;
+  }
+  .os-badge.win{background:#0078D4; color:#fff;}
+  .os-badge.mac{background:#636366; color:#fff;}
+
+  /* STEP 0-3 OS 전환 힌트 배너 */
+  .os-hint{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    margin:0 0 14px; padding:11px 14px;
+    background:#1A2A3A; border:1px solid rgba(255,255,255,.1); border-radius:10px;
+    font-family:var(--mono); font-size:11.5px; color:rgba(255,255,255,.55);
+  }
+  .os-hint b{color:rgba(255,255,255,.85);}
+  .os-hint__btn{
+    display:inline-flex; align-items:center; gap:5px;
+    font-family:var(--mono); font-size:11.5px; font-weight:800;
+    padding:4px 11px; border-radius:7px; cursor:pointer;
+    border:none; transition:.15s; white-space:nowrap;
+  }
+  .os-hint__btn.win{background:#0078D4; color:#fff;}
+  .os-hint__btn.mac{background:#636366; color:#fff;}
+  .os-hint__btn:hover{opacity:.8;}
+
+  /* ---------- 지식 볼트 — 파이프라인 플로우 ---------- */
+  .kv-pipeline{
+    display:flex; flex-wrap:wrap; align-items:stretch; gap:0;
+    margin:14px 0 16px; border:1px solid var(--line); border-radius:13px; overflow:hidden;
+  }
+  .kv-step{
+    flex:1; min-width:100px; padding:13px 14px; position:relative;
+    background:#fff; border-right:1px solid var(--line); text-align:center;
+  }
+  .kv-step:last-child{border-right:none;}
+  .kv-step__cmd{
+    font-family:var(--mono); font-size:11px; font-weight:800;
+    color:#fff; background:var(--blueprint); border-radius:6px;
+    padding:3px 8px; display:inline-block; margin-bottom:5px; letter-spacing:.02em;
+  }
+  .kv-step:nth-child(2) .kv-step__cmd{background:var(--amber);}
+  .kv-step:nth-child(3) .kv-step__cmd{background:var(--approve);}
+  .kv-step:nth-child(4) .kv-step__cmd{background:#7B52AB;}
+  .kv-step__title{font-size:12.5px; font-weight:800; margin:0 0 3px; color:var(--ink);}
+  .kv-step__desc{font-size:11.5px; color:var(--ink-soft); line-height:1.5; margin:0;}
+  @media(max-width:560px){ .kv-step{flex:1 1 46%; border-right:none; border-bottom:1px solid var(--line);} }
+
+  /* 지식 노트 4종 카드 */
+  .kv-types{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:12px 0;}
+  @media(max-width:540px){ .kv-types{grid-template-columns:1fr;} }
+  .kv-type{
+    padding:12px 14px; border-radius:11px; border:1px solid var(--line);
+    background:#fff; box-shadow:var(--shadow);
+  }
+  .kv-type__tag{
+    font-family:var(--mono); font-size:10.5px; font-weight:800;
+    border-radius:5px; padding:2px 8px; display:inline-block; margin-bottom:6px; color:#fff;
+  }
+  .kv-type.lesson .kv-type__tag{background:var(--blueprint);}
+  .kv-type.playbook .kv-type__tag{background:var(--amber);}
+  .kv-type.asset .kv-type__tag{background:var(--approve);}
+  .kv-type.decision .kv-type__tag{background:#7B52AB;}
+  .kv-type__q{font-size:11.5px; color:var(--ink-soft); margin:0 0 4px;}
+  .kv-type__ex{font-size:12px; color:var(--ink); font-style:italic; margin:0; line-height:1.5;}
+
+  /* tier 배지 */
+  .tier{
+    display:inline-flex; align-items:center; gap:5px;
+    font-family:var(--mono); font-size:11px; font-weight:800;
+    border-radius:6px; padding:3px 9px; vertical-align:middle;
+  }
+  .tier.primary{background:#E9F0F6; color:var(--blueprint); border:1px solid #C5D8EC;}
+  .tier.synth{background:#F3EDFB; color:#7B52AB; border:1px solid #D9C8F0;}
+
+  /* ---------- 정답지 레포 배너 ---------- */
+  .repobox{
+    margin:20px 0 24px;
+    border:2px solid #2DA44E;
+    border-radius:16px; overflow:hidden;
+    box-shadow:0 0 0 4px rgba(45,164,78,.1), var(--shadow);
+  }
+  .repobox__head{
+    display:flex; align-items:center; gap:14px;
+    background:#2DA44E; color:#fff; padding:14px 20px;
+  }
+  .repobox__icon{font-size:22px; flex:none; line-height:1;}
+  .repobox__ht{margin:0;}
+  .repobox__title{font-size:15.5px; font-weight:800; letter-spacing:-.01em; display:block;}
+  .repobox__sub{font-family:var(--mono); font-size:11px; font-weight:600; color:rgba(255,255,255,.72); display:block; margin-top:2px; letter-spacing:.02em;}
+  .repobox__body{background:#fff; padding:18px 20px;}
+  .repobox__why{
+    font-size:14px; line-height:1.75; color:var(--ink); margin:0 0 14px;
+  }
+  .repobox__why b{color:#2DA44E;}
+  .repobox__why .wr{color:var(--danger); font-weight:700;}
+  .repobox__grid{
+    display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px;
+  }
+  @media(max-width:540px){ .repobox__grid{grid-template-columns:1fr;} }
+  .repobox__point{
+    display:flex; align-items:flex-start; gap:8px;
+    background:var(--paper); border:1px solid var(--line);
+    border-radius:9px; padding:10px 12px; font-size:13px; line-height:1.55;
+  }
+  .repobox__point .pi{font-size:15px; flex:none; margin-top:1px;}
+  .repobox__point b{color:var(--blueprint); display:block; font-size:12px; font-family:var(--mono); margin-bottom:2px;}
+  .repobox__actions{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+  .repo-btn{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:var(--mono); font-size:13px; font-weight:800;
+    padding:9px 18px; border-radius:10px; text-decoration:none;
+    transition:.18s; border:none; cursor:pointer; white-space:nowrap;
+  }
+  .repo-btn.primary{background:#2DA44E; color:#fff; box-shadow:0 2px 8px rgba(45,164,78,.3);}
+  .repo-btn.primary:hover{background:#218838; box-shadow:0 4px 14px rgba(45,164,78,.4);}
+  .repo-btn.secondary{background:#fff; color:var(--ink); border:1.5px solid var(--line);}
+  .repo-btn.secondary:hover{border-color:#2DA44E; color:#2DA44E;}
+  .repobox__clone{
+    margin-top:14px; border-radius:10px; overflow:hidden;
+    border:1px solid #2A3A4A;
+  }
+  .repobox__clone .cmdblock__bar{background:#1a2a1a;}
+  .repobox__clone .cmdblock__code{background:#0d1a0d;}
+
+  /* ---------- 넘버링 트리 ---------- */
+  .num-tree{
+    margin:14px 0 18px;
+    background:var(--ink); border-radius:14px; overflow:hidden;
+    border:1px solid #2A3A4A;
+    font-family:var(--mono);
+  }
+  .num-tree__top{
+    display:flex; align-items:center; gap:10px;
+    padding:11px 16px; background:#1E2A38; border-bottom:1px solid #2A3A4A;
+  }
+  .num-tree__title{font-size:12px; font-weight:700; color:#8AACC8; letter-spacing:.04em;}
+  .num-tree__legend{
+    display:flex; gap:14px; margin-left:auto; flex-wrap:wrap;
+  }
+  .nleg{display:inline-flex; align-items:center; gap:5px; font-size:10.5px; font-weight:700;}
+  .nleg .nb{width:22px; height:14px; border-radius:3px; flex:none;}
+
+  .num-tree__body{padding:18px 20px 20px;}
+
+  /* 루트 */
+  .nt-root{margin-bottom:18px;}
+  .nt-root:last-child{margin-bottom:0;}
+
+  /* 레이어 행 */
+  .nt-row{display:flex; align-items:flex-start; gap:0; margin-bottom:0;}
+
+  /* 인덴트 가이드 라인 */
+  .nt-indent{flex:none; width:28px; position:relative;}
+  .nt-indent::before{
+    content:''; position:absolute; left:14px; top:0; bottom:0;
+    border-left:1px dashed rgba(138,172,200,.25);
+  }
+  .nt-indent.last::before{height:14px;}
+
+  /* 노드 블록 */
+  .nt-node{
+    flex:1; min-width:0; margin-bottom:6px;
+    display:flex; align-items:flex-start; gap:10px;
+  }
+  .nt-node::before{
+    content:''; flex:none; width:12px; height:1px;
+    background:rgba(138,172,200,.3); margin-top:13px;
+  }
+  .nt-root > .nt-node::before{display:none;}
+
+  /* 코드 뱃지 */
+  .nt-code{
+    flex:none; font-size:13px; font-weight:900; letter-spacing:.04em;
+    border-radius:6px; padding:3px 9px; color:#fff; white-space:nowrap;
+    line-height:1.6;
+  }
+  .nt-code.cat{background:#21456B;}   /* 카테고리 파랑 */
+  .nt-code.dom{background:#C2772A;}   /* 도메인 주황 */
+  .nt-code.step{background:#2F6B4F;}  /* 단계 초록 */
+  .nt-code.ex{background:#5A3A8A;}    /* 예시 보라 */
+  .nt-code.gray{background:#3A4A5A;}  /* 주차장 */
+
+  .nt-label{
+    font-size:12.5px; color:#C8D8E8; line-height:1.6; padding-top:3px;
+  }
+  .nt-label b{color:#fff;}
+  .nt-label .desc{color:#6A8AA8; font-size:11.5px; display:block; margin-top:1px;}
+
+  /* 예시 줄 */
+  .nt-example{
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    margin:14px 0 0; padding:12px 14px;
+    background:#1E2A38; border-radius:9px; border:1px solid #2A3A4A;
+  }
+  .nt-ex-item{display:flex; align-items:center; gap:6px; font-size:12px; color:#8AACC8;}
+  .nt-ex-item .nt-code{font-size:12px; padding:2px 7px;}
+  .nt-ex-sep{color:#2A3A4A; font-size:16px;}
+  .nt-ex-eq{color:#4A6A8A;}
+  .nt-ex-txt{color:#C8D8E8;}
+  .nt-ex-sub{color:#FFD580; font-size:11px; margin-left:2px;}</style>
+</head>
+<body>
+
+<!-- ===== STICKY 버전 게이지 ===== -->
+<header class="topbar">
+  <div class="topbar__in">
+    <span class="topbar__id">데이터 생애주기 · 프로젝트 관리법</span>
+    <div class="gauge">
+      <div class="gauge__meta">
+        <span>마감 진행률 · 버전 게이지</span>
+        <span><span class="gauge__pct" id="pctText">0%</span> &nbsp;<span id="countText">0 / 0 완료</span></span>
+      </div>
+      <div class="gauge__track"><div class="gauge__fill" id="gaugeFill"></div></div>
+    </div>
+    <button class="btn-reset" id="resetBtn" title="진행 기록 초기화">진행 초기화</button>
+  </div>
+</header>
+
+<!-- ===== OS 선택 바 ===== -->
+<div class="os-bar" role="navigation" aria-label="운영체제 선택">
+  <div class="os-bar__in">
+    <span class="os-bar__label">내 PC 운영체제 :</span>
+    <div class="os-tabs" role="group" aria-label="OS 선택">
+      <button class="os-tab win-btn active" data-os="win" aria-pressed="true">
+        <span class="ico">🪟</span> Windows
+      </button>
+      <button class="os-tab mac-btn" data-os="mac" aria-pressed="false">
+        <span class="ico">🍎</span> macOS
+      </button>
+    </div>
+    <span class="os-note" id="osNote">선택하면 교안 전체의 경로·단축키가 자동으로 바뀝니다</span>
+  </div>
+</div>
+
+<!-- ===== HERO ===== -->
+<section class="hero">
+  <div class="hero__grid"></div>
+  <div class="hero__in">
+
+    <!-- L1 브레드크럼 -->
+    <nav class="crumb" aria-label="교안 위치">
+      <span class="root">AX 기초세우기</span>
+      <span class="sep">›</span>
+      <span class="chap">데이터 생애주기 관리법</span>
+      <span class="sep">›</span>
+      <span class="here">프로젝트 관리법</span>
+    </nav>
+
+    <!-- L2 교안 아이덴티티 배지 -->
+    <span class="eyebrow"><span class="dot"></span>경영자의 AI · 사내 실무 교안</span>
+
+    <!-- L3 대제목 — 3계층 타이포 -->
+    <h1 class="hero__title">
+      <span class="kicker">Data Lifecycle Management · Project Module</span>
+      <span class="line1">프로젝트 파일이</span>
+      <span class="line2"><em>살아있는</em> 지식이 된다</span>
+    </h1>
+
+    <!-- L4 3단원 플로우 비주얼 -->
+    <div class="hero__flow" role="list" aria-label="교안 구성">
+      <div class="hf-step" role="listitem">
+        <span class="hf-step__num" style="background:#1C6B3A;">PART 0</span>
+        <p class="hf-step__t">도구 환경 설치</p>
+        <p class="hf-step__d">Git·Node·VSCode·Claude Code·Obsidian 설치 — 한 번만</p>
+        <span class="hf-step__range">준비 단계</span>
+      </div>
+      <div class="hf-arrow" aria-hidden="true">→</div>
+      <div class="hf-step" role="listitem">
+        <span class="hf-step__num">PART 1</span>
+        <p class="hf-step__t">시스템 구축</p>
+        <p class="hf-step__d">LLM이 직접 읽고 작동하는 파일관리 프레임웍을 설치합니다</p>
+        <span class="hf-step__range">단계 1</span>
+      </div>
+      <div class="hf-arrow" aria-hidden="true">→</div>
+      <div class="hf-step" role="listitem">
+        <span class="hf-step__num">PART 2</span>
+        <p class="hf-step__t">프로젝트 Git 관리</p>
+        <p class="hf-step__d">저장소 생성부터 실무 커밋·검색·마감·백업까지 한 사이클</p>
+        <span class="hf-step__range">단계 2 – 6</span>
+      </div>
+      <div class="hf-arrow" aria-hidden="true">→</div>
+      <div class="hf-step" role="listitem">
+        <span class="hf-step__num">PART 3</span>
+        <p class="hf-step__t">LLM 위키 전환</p>
+        <p class="hf-step__d">완성 프로젝트 인사이트를 AI가 꺼내 쓰는 재활용 지식으로</p>
+        <span class="hf-step__range">단계 7</span>
+      </div>
+    </div>
+
+    <!-- L5 핵심 속성 칩 -->
+    <div class="principles">
+      <span class="chip"><span class="ci">🔒</span> <b>100% 로컬</b> · 외부 클라우드 미사용</span>
+      <span class="chip"><span class="ci">🗣️</span> <b>비개발자용</b> · 자연어로 제어</span>
+      <span class="chip"><span class="ci">🧠</span> <b>지식 자산화</b> · 회사 자산으로 축적</span>
+      <span class="chip"><span class="ci">♻️</span> <b>재활용</b> · 다음 프로젝트에 즉시 적용</span>
+    </div>
+
+    <!-- L6 사용법 안내 -->
+    <div class="howto">
+      <b>사용법</b> — 각 단계 작업을 마치면 왼쪽 <b>체크박스</b>로 진행률을 채우세요.
+      파란 박스 <b>「직원 프롬프트」는 그대로 복사</b>해 AI 에이전트(Cursor · Claude Code · VS Code)에 전달합니다.
+      진행률은 브라우저에 자동 저장됩니다.
+    </div>
+
+    <!-- 교안 내비게이션 — 실제 3단원 구성 -->
+    <div class="secmap">
+      <div class="secmap__t">이 교안의 구성 — 클릭하면 해당 단원으로 이동</div>
+      <div class="secmap__row">
+        <a class="sec" href="#part0" style="text-decoration:none; cursor:pointer; border-color:#1C6B3A; color:#1C6B3A; background:#fff;">
+          <span class="no" style="color:#1C6B3A;">PART 0</span> 도구 환경 설치
+        </a>
+        <a class="sec cur" href="#part1" style="text-decoration:none; cursor:pointer;">
+          <span class="no">PART 1</span> 시스템 구축 · 프레임웍 설치
+        </a>
+        <a class="sec" href="#part2" style="text-decoration:none; cursor:pointer; border-color:var(--amber); color:var(--amber); background:#fff;">
+          <span class="no" style="color:var(--amber);">PART 2</span> 프로젝트 Git 관리
+        </a>
+        <a class="sec" href="#part3" style="text-decoration:none; cursor:pointer; border-color:#7B52AB; color:#7B52AB; background:#fff;">
+          <span class="no" style="color:#7B52AB;">PART 3</span> LLM 위키 전환
+        </a>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<main class="wrap" id="course">
+
+  <!-- ══════════════ 대단원 0 ══════════════ -->
+  <div id="part0" style="margin:52px 0 0; padding:18px 22px 16px; background:#1C6B3A; border-radius:16px 16px 0 0;">
+    <div style="font-family:var(--mono); font-size:11px; font-weight:700; color:rgba(255,255,255,.6); letter-spacing:.08em; margin-bottom:4px;">PART 0 · 최초 1회 설치</div>
+    <div style="font-size:22px; font-weight:900; color:#fff; letter-spacing:-.02em;">도구 환경 설치</div>
+    <div style="font-size:13.5px; color:rgba(255,255,255,.75); margin-top:4px;">이 교안 전체를 실행하기 위한 필수·선택 도구를 한 번만 설치합니다</div>
+  </div>
+
+  <!-- ── PART 0 추천 설치 순서 안내 ── -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="필수">0</div>
+      <div class="stage__t">
+        <div class="stage__kicker">Install Guide · 이 교안 필수·권장 도구</div>
+        <h2 class="stage__name">무엇을 설치해야 하나 — 추천 순서</h2>
+      </div>
+    </div>
+    <p class="stage__desc">이 교안의 내용을 그대로 따라하려면 아래 순서로 설치하세요. <b>필수</b>는 없으면 교안 자체가 작동하지 않고, <b>권장</b>은 없어도 일부 기능이 제한될 뿐입니다.</p>
+
+    <div class="task" data-task="t0-guide">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 0-0 · 필독</div>
+          <p class="task__title">설치 로드맵 — 필수 vs 권장 한눈에 보기</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="eg-wrap">
+          <div class="eg-head"><span class="eg-title">🗺️ 이 교안을 위한 도구 설치 로드맵</span></div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+              <thead><tr style="background:var(--paper-2);">
+                <th style="padding:8px 14px; text-align:left; border-bottom:1px solid var(--line); font-family:var(--mono); font-size:11px; color:var(--ink-soft);">도구</th>
+                <th style="padding:8px 14px; text-align:left; border-bottom:1px solid var(--line); font-family:var(--mono); font-size:11px; color:var(--ink-soft);">필요도</th>
+                <th style="padding:8px 14px; text-align:left; border-bottom:1px solid var(--line); font-family:var(--mono); font-size:11px; color:var(--ink-soft);">이유</th>
+              </tr></thead>
+              <tbody>
+                <tr style="border-bottom:1px solid var(--paper-2);">
+                  <td style="padding:9px 14px; font-weight:700;">Git</td>
+                  <td style="padding:9px 14px;"><span style="background:var(--danger); color:#fff; font-family:var(--mono); font-size:10px; font-weight:800; border-radius:5px; padding:2px 7px;">필수</span></td>
+                  <td style="padding:9px 14px; color:var(--ink-soft);">교안 전체(PART 1~3)의 핵심 엔진</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--paper-2);">
+                  <td style="padding:9px 14px; font-weight:700;">GitHub 계정 + CLI</td>
+                  <td style="padding:9px 14px;"><span style="background:var(--danger); color:#fff; font-family:var(--mono); font-size:10px; font-weight:800; border-radius:5px; padding:2px 7px;">필수</span></td>
+                  <td style="padding:9px 14px; color:var(--ink-soft);">저장소 클론·공유·백업 — PART 1~3 레포 클론에 필요</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--paper-2);">
+                  <td style="padding:9px 14px; font-weight:700;">Node.js LTS</td>
+                  <td style="padding:9px 14px;"><span style="background:var(--danger); color:#fff; font-family:var(--mono); font-size:10px; font-weight:800; border-radius:5px; padding:2px 7px;">필수</span></td>
+                  <td style="padding:9px 14px; color:var(--ink-soft);">Claude Code·Codex CLI·Lint 스크립트 실행에 필요</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--paper-2);">
+                  <td style="padding:9px 14px; font-weight:700;">VS Code</td>
+                  <td style="padding:9px 14px;"><span style="background:var(--danger); color:#fff; font-family:var(--mono); font-size:10px; font-weight:800; border-radius:5px; padding:2px 7px;">필수</span></td>
+                  <td style="padding:9px 14px; color:var(--ink-soft);">에디터 겸 터미널 환경 — 교안 프롬프트 실행 기반</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--paper-2);">
+                  <td style="padding:9px 14px; font-weight:700;">Claude Code CLI</td>
+                  <td style="padding:9px 14px;"><span style="background:var(--danger); color:#fff; font-family:var(--mono); font-size:10px; font-weight:800; border-radius:5px; padding:2px 7px;">필수</span></td>
+                  <td style="padding:9px 14px; color:var(--ink-soft);">PART 1 스킬·훅, PART 3 슬래시 커맨드(/capture 등) 실행</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--paper-2);">
+                  <td style="padding:9px 14px; font-weight:700;">Obsidian</td>
+                  <td style="padding:9px 14px;"><span style="background:var(--approve); color:#fff; font-family:var(--mono); font-size:10px; font-weight:800; border-radius:5px; padding:2px 7px;">강력 권장</span></td>
+                  <td style="padding:9px 14px; color:var(--ink-soft);">PART 3 지식 위키 시각화·그래프 뷰 — 없어도 VSCode로 열람 가능</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--paper-2);">
+                  <td style="padding:9px 14px; font-weight:700;">Antigravity 2.0 CLI</td>
+                  <td style="padding:9px 14px;"><span style="background:var(--blueprint); color:#fff; font-family:var(--mono); font-size:10px; font-weight:800; border-radius:5px; padding:2px 7px;">선택</span></td>
+                  <td style="padding:9px 14px; color:var(--ink-soft);">Claude Code 대체 또는 병행 — Google Gemini 3.5 기반 에이전트</td>
+                </tr>
+                <tr>
+                  <td style="padding:9px 14px; font-weight:700;">OpenAI Codex CLI</td>
+                  <td style="padding:9px 14px;"><span style="background:var(--blueprint); color:#fff; font-family:var(--mono); font-size:10px; font-weight:800; border-radius:5px; padding:2px 7px;">선택</span></td>
+                  <td style="padding:9px 14px; color:var(--ink-soft);">GPT-5.3 기반 터미널 에이전트 — 비교 테스트 용도</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="note tip" style="margin-top:10px;"><b>권장 설치 순서</b> — Git → GitHub 가입 & CLI → Node.js LTS → VS Code → Claude Code CLI → Obsidian 순서로 설치하면 의존성 충돌 없이 진행됩니다. Antigravity·Codex는 나중에 추가해도 됩니다.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Git 설치 ── -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="필수">G</div>
+      <div class="stage__t">
+        <div class="stage__kicker">필수 · git.scm.com</div>
+        <h2 class="stage__name">Git — 버전 관리 엔진</h2>
+      </div>
+    </div>
+    <p class="stage__desc">이 교안 전체의 핵심 엔진입니다. 가장 먼저 설치하세요.</p>
+
+    <div class="task" data-task="tp-git">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">INSTALL · Git</div>
+          <p class="task__title">Git 공식 설치 & 확인</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="repobox" style="border-color:#F05033; box-shadow:0 0 0 4px rgba(240,80,51,.08), var(--shadow);">
+          <div class="repobox__head" style="background:#F05033;">
+            <span class="repobox__icon">🔧</span>
+            <div class="repobox__ht">
+              <span class="repobox__title">Git 공식 다운로드</span>
+              <span class="repobox__sub">git-scm.com · 최신 안정 버전 · 무료</span>
+            </div>
+          </div>
+          <div class="repobox__body">
+            <div class="repobox__actions">
+              <a class="repo-btn primary" href="https://git-scm.com/downloads" target="_blank" rel="noopener" style="background:#F05033; box-shadow:0 2px 8px rgba(240,80,51,.3);">🔧 Windows / Mac 다운로드 ↗</a>
+              <a class="repo-btn secondary" href="https://git-scm.com" target="_blank" rel="noopener">공식 사이트 ↗</a>
+            </div>
+          </div>
+        </div>
+        <div class="win-only">
+          <ol>
+            <li><code class="kbd">git-scm.com/downloads</code> → <b>Download for Windows</b> 클릭</li>
+            <li>다운로드된 <code class="kbd">.exe</code> 실행 → <b>Next만 계속 눌러</b> 설치 (기본값 그대로)</li>
+            <li>설치 완료 후 PowerShell 재시작</li>
+          </ol>
+        </div>
+        <div class="mac-only">
+          <ol>
+            <li>Homebrew가 있다면: <code class="kbd">brew install git</code></li>
+            <li>또는 <code class="kbd">git-scm.com/downloads/mac</code> → 설치 패키지 다운로드</li>
+            <li>Xcode Command Line Tools로도 설치 가능: <code class="kbd">xcode-select --install</code></li>
+          </ol>
+        </div>
+        <div class="cmdblock" data-cmd="git --version">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;설치 확인</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">git</span> <span class="flag">--version</span>   <span style="color:#5A8A6A;"># git version 2.x.x 출력되면 성공</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── GitHub 가입 & CLI ── -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="필수">GH</div>
+      <div class="stage__t">
+        <div class="stage__kicker">필수 · github.com + cli.github.com</div>
+        <h2 class="stage__name">GitHub 가입 & CLI(gh) 설치</h2>
+      </div>
+    </div>
+    <p class="stage__desc">
+      <b>Git</b>이 로컬 버전 관리 엔진이라면, <b>GitHub</b>는 그 엔진을 인터넷 위에 연결하는 클라우드 허브입니다.
+      <b>GitHub CLI(gh)</b>는 브라우저 없이 터미널에서 저장소 생성·클론·코드 공유까지 처리하는 공식 도구입니다.
+      이 교안의 PART 1 스킬 클론, PART 3 knowledge-vault 클론 모두 <code class="kbd">gh</code>로 처리할 수 있습니다.
+    </p>
+
+    <!-- 가입 카드 -->
+    <div class="task" data-task="tp-gh-signup">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP GH-1 · GitHub 계정 생성</div>
+          <p class="task__title">GitHub 무료 계정 가입</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="repobox" style="border-color:#24292F; box-shadow:0 0 0 4px rgba(36,41,47,.08), var(--shadow);">
+          <div class="repobox__head" style="background:#24292F;">
+            <span class="repobox__icon">🐙</span>
+            <div class="repobox__ht">
+              <span class="repobox__title">GitHub 공식 가입 페이지</span>
+              <span class="repobox__sub">github.com/signup · 개인 계정 무료 · 비공개 저장소 무제한 포함</span>
+            </div>
+          </div>
+          <div class="repobox__body">
+            <div class="repobox__actions">
+              <a class="repo-btn primary" href="https://github.com/signup" target="_blank" rel="noopener" style="background:#24292F; box-shadow:0 2px 8px rgba(36,41,47,.3);">🐙 github.com/signup ↗</a>
+              <a class="repo-btn secondary" href="https://docs.github.com/ko/get-started/start-your-journey/creating-an-account-on-github" target="_blank" rel="noopener">공식 한국어 문서 ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size:13.5px; margin:14px 0 6px; font-weight:700;">가입 순서</p>
+        <div class="eg-wrap">
+          <div class="eg-row ok"><span class="eg-mark ok">1</span><code class="eg-msg">github.com/signup 접속 → 이메일 주소 입력 (실제 수신 가능한 메일)</code><span class="eg-cnt">이메일</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">2</span><code class="eg-msg">비밀번호 설정 (8자 이상, 숫자+소문자 포함) → 사용자 이름(Username) 입력</code><span class="eg-cnt">계정 정보</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">3</span><code class="eg-msg">퍼즐(로봇 인증) 풀기 → Create account 클릭</code><span class="eg-cnt">인증</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">4</span><code class="eg-msg">가입 이메일로 발송된 인증 코드 입력 (noreply@github.com 발신)</code><span class="eg-cnt">이메일 인증</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">5</span><code class="eg-msg">플랜 선택 화면 → Free 유지 (Skip personalization 클릭해도 됨)</code><span class="eg-cnt">무료 플랜</span></div>
+        </div>
+
+        <div class="note tip" style="margin-top:10px;">
+          <b>무료 계정으로 충분</b> — 비공개 저장소 무제한, 협업자 무제한, GitHub Actions 월 2,000분이 무료로 제공됩니다. 이 교안의 모든 기능을 무료 계정에서 사용할 수 있습니다.<br>
+          <b>사용자 이름 팁</b> — 한번 정하면 바꾸기 어려우니 <code class="kbd">실명-영어</code> 또는 <code class="kbd">회사명</code> 형태를 권장합니다.
+        </div>
+
+        <p style="font-size:13.5px; margin:14px 0 6px; font-weight:700;">🔒 가입 직후 권장 보안 설정</p>
+        <div class="eg-wrap">
+          <div class="eg-row ok"><span class="eg-mark ok">①</span><code class="eg-msg">프로필 우상단 → Settings → Password and authentication → 2FA 활성화</code><span class="eg-cnt">강력 권장</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">②</span><code class="eg-msg">Settings → Emails → "Keep my email address private" 체크 (이메일 노출 방지)</code><span class="eg-cnt">권장</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLI 카드 -->
+    <div class="task" data-task="tp-gh-cli">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP GH-2 · GitHub CLI 설치</div>
+          <p class="task__title">GitHub CLI(gh) 설치 & 로그인 연결</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="repobox" style="border-color:#24292F; box-shadow:0 0 0 4px rgba(36,41,47,.08), var(--shadow);">
+          <div class="repobox__head" style="background:#24292F;">
+            <span class="repobox__icon">⌨️</span>
+            <div class="repobox__ht">
+              <span class="repobox__title">GitHub CLI 공식 다운로드 · v2.88.x</span>
+              <span class="repobox__sub">cli.github.com · Windows·Mac·Linux 지원 · 무료</span>
+            </div>
+          </div>
+          <div class="repobox__body">
+            <div class="repobox__actions">
+              <a class="repo-btn primary" href="https://cli.github.com" target="_blank" rel="noopener" style="background:#24292F; box-shadow:0 2px 8px rgba(36,41,47,.3);">⌨️ cli.github.com ↗</a>
+              <a class="repo-btn secondary" href="https://github.com/cli/cli/releases/latest" target="_blank" rel="noopener">최신 릴리즈 직접 다운로드 ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Windows 설치 -->
+        <div class="win-only">
+          <p style="font-size:13.5px; margin:12px 0 6px; font-weight:700;">Windows — WinGet 설치 (권장)</p>
+          <div class="cmdblock" data-cmd="winget install --id GitHub.cli --source winget">
+            <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;PowerShell · WinGet (Windows 10 22H2 이상 기본 탑재)</span><button class="cmdblock__copy">복사</button></div>
+            <pre class="cmdblock__code"><span class="prompt">PS> </span><span class="cmd">winget install</span> <span class="flag">--id</span> <span class="val">GitHub.cli</span> <span class="flag">--source</span> <span class="val">winget</span>
+<span style="color:#5A8A6A;"># 설치 완료 후 반드시 새 PowerShell 창 열기 (탭 추가 말고 새 창)</span></pre>
+          </div>
+          <p style="font-size:13px; color:var(--ink-soft); margin:6px 0 0;">WinGet이 없다면 <code class="kbd">cli.github.com</code>에서 <code class="kbd">.msi</code> 인스톨러 다운로드 후 실행하세요.</p>
+        </div>
+
+        <!-- Mac 설치 -->
+        <div class="mac-only">
+          <p style="font-size:13.5px; margin:12px 0 6px; font-weight:700;">macOS — Homebrew 설치 (권장)</p>
+          <div class="cmdblock" data-cmd="brew install gh">
+            <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;터미널 · Homebrew</span><button class="cmdblock__copy">복사</button></div>
+            <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">brew install</span> <span class="val">gh</span>
+<span style="color:#5A8A6A;"># Homebrew가 없다면: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"</span></pre>
+          </div>
+        </div>
+
+        <!-- 설치 확인 -->
+        <div class="cmdblock" data-cmd="gh --version">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;설치 확인</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">gh</span> <span class="flag">--version</span>   <span style="color:#5A8A6A;"># gh version 2.x.x 출력되면 성공</span></pre>
+        </div>
+
+        <!-- 인증 연결 -->
+        <p style="font-size:13.5px; margin:14px 0 6px; font-weight:700;">GitHub 계정 연결 (인증)</p>
+        <div class="cmdblock" data-cmd="gh auth login">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;GitHub 계정 연결 — 브라우저 자동 오픈</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">gh auth login</span>
+<span style="color:#5A8A6A;"># ① GitHub.com 선택</span>
+<span style="color:#5A8A6A;"># ② HTTPS 선택 (권장)</span>
+<span style="color:#5A8A6A;"># ③ Login with a web browser 선택 → 브라우저에서 인증 코드 입력</span>
+<span style="color:#5A8A6A;"># ④ ✓ Logged in to github.com 출력되면 완료</span></pre>
+        </div>
+
+        <p style="font-size:13.5px; margin:14px 0 6px; font-weight:700;">연결 확인 & 자주 쓰는 명령어</p>
+        <div class="eg-wrap">
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">gh auth status  — 현재 로그인 계정 확인</code><span class="eg-cnt">확인</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">gh repo clone kkh2114/file-system-creator  — 저장소 클론 (URL 불필요)</code><span class="eg-cnt">클론</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">gh repo create 내프로젝트 --private  — 비공개 저장소 바로 생성</code><span class="eg-cnt">저장소 생성</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">gh repo view  — 현재 폴더의 GitHub 저장소 정보 확인</code><span class="eg-cnt">정보 조회</span></div>
+        </div>
+
+        <div class="note tip">
+          <b>gh와 git의 역할 구분</b> — <code class="kbd">git</code>은 로컬 버전 관리(커밋·브랜치), <code class="kbd">gh</code>는 GitHub 서비스 제어(저장소 생성·클론·공유)입니다. 둘 다 터미널에서 쓰지만 담당이 다릅니다.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Node.js 설치 ── -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="필수">N</div>
+      <div class="stage__t">
+        <div class="stage__kicker">필수 · nodejs.org</div>
+        <h2 class="stage__name">Node.js LTS — Claude Code·Lint 실행 기반</h2>
+      </div>
+    </div>
+    <p class="stage__desc">Claude Code CLI·Codex CLI·Lint 스크립트 모두 Node.js 위에서 실행됩니다. 반드시 <b>LTS 버전</b>을 설치하세요. (2026년 6월 기준 최신 LTS: <b>v24.x</b>)</p>
+
+    <div class="task" data-task="tp-node">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">INSTALL · Node.js</div>
+          <p class="task__title">Node.js LTS 설치 & 확인</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="repobox" style="border-color:#417E38; box-shadow:0 0 0 4px rgba(65,126,56,.08), var(--shadow);">
+          <div class="repobox__head" style="background:#417E38;">
+            <span class="repobox__icon">🟢</span>
+            <div class="repobox__ht">
+              <span class="repobox__title">Node.js 공식 다운로드 — LTS 버튼 클릭</span>
+              <span class="repobox__sub">nodejs.org · v24.x LTS 권장 · npm 포함</span>
+            </div>
+          </div>
+          <div class="repobox__body">
+            <div class="repobox__actions">
+              <a class="repo-btn primary" href="https://nodejs.org/en/download/" target="_blank" rel="noopener" style="background:#417E38; box-shadow:0 2px 8px rgba(65,126,56,.3);">🟢 nodejs.org 다운로드 ↗</a>
+            </div>
+          </div>
+        </div>
+        <div class="note warn"><b>반드시 LTS 선택</b> — Current(최신) 버전이 아니라 <b>LTS(장기 지원)</b> 버튼을 클릭하세요. Claude Code는 Node 18+ 필요, Codex CLI는 Node 22+ 권장합니다.</div>
+        <div class="cmdblock" data-cmd="node -v
+npm -v">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;설치 확인</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">node</span> <span class="flag">-v</span>    <span style="color:#5A8A6A;"># v24.x.x 출력</span>
+<span class="prompt">$ </span><span class="cmd">npm</span> <span class="flag">-v</span>     <span style="color:#5A8A6A;"># 10.x.x 이상 출력</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── VS Code 설치 ── -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="필수">V</div>
+      <div class="stage__t">
+        <div class="stage__kicker">필수 · code.visualstudio.com</div>
+        <h2 class="stage__name">VS Code — 에디터 & 터미널 통합 환경</h2>
+      </div>
+    </div>
+    <p class="stage__desc">교안의 모든 프롬프트를 실행하는 작업 공간입니다. Git·터미널이 내장돼 있어 추가 도구 없이 바로 사용 가능합니다.</p>
+
+    <div class="task" data-task="tp-vscode">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">INSTALL · VS Code</div>
+          <p class="task__title">VS Code 설치 & 초기 세팅</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="repobox" style="border-color:#0078D4; box-shadow:0 0 0 4px rgba(0,120,212,.08), var(--shadow);">
+          <div class="repobox__head" style="background:#0078D4;">
+            <span class="repobox__icon">💙</span>
+            <div class="repobox__ht">
+              <span class="repobox__title">VS Code 공식 다운로드</span>
+              <span class="repobox__sub">code.visualstudio.com · 무료 · 오픈소스</span>
+            </div>
+          </div>
+          <div class="repobox__body">
+            <div class="repobox__actions">
+              <a class="repo-btn primary" href="https://code.visualstudio.com/download" target="_blank" rel="noopener" style="background:#0078D4; box-shadow:0 2px 8px rgba(0,120,212,.3);">💙 VS Code 다운로드 ↗</a>
+              <a class="repo-btn secondary" href="https://vscode.dev" target="_blank" rel="noopener">🌐 브라우저에서 열기 (vscode.dev)</a>
+            </div>
+          </div>
+        </div>
+        <div class="win-only">
+          <p style="font-size:13.5px; margin:12px 0 6px;"><b>Windows 설치 순서</b></p>
+          <ol>
+            <li><b>User Setup 설치 파일</b>(<code class="kbd">VSCodeUserSetup-x64-x.x.x.exe</code>) 다운로드 — 관리자 권한 불필요</li>
+            <li>설치 중 <b>"Add to PATH"</b> 체크박스 반드시 선택</li>
+            <li>설치 완료 후 PowerShell 재시작 → <code class="kbd">code --version</code> 확인</li>
+          </ol>
+        </div>
+        <div class="mac-only">
+          <p style="font-size:13.5px; margin:12px 0 6px;"><b>macOS 설치 순서</b></p>
+          <ol>
+            <li><code class="kbd">.dmg</code> 다운로드 → 열기 → <b>Applications 폴더로 드래그</b></li>
+            <li>VS Code 실행 → <code class="kbd">Cmd+Shift+P</code> → <b>"Shell Command: Install 'code' command in PATH"</b> 선택</li>
+            <li>터미널 재시작 → <code class="kbd">code --version</code> 확인</li>
+          </ol>
+        </div>
+        <p style="font-size:13.5px; margin:14px 0 6px;"><b>초기 세팅 — 필수 확장 3종</b></p>
+        <div class="eg-wrap">
+          <div class="eg-row ok"><span class="eg-mark ok">★</span><code class="eg-msg">Korean Language Pack — 한국어 UI 전환</code><span class="eg-cnt">필수</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">★</span><code class="eg-msg">GitLens — Git 커밋 이력을 코드 라인 옆에 표시</code><span class="eg-cnt">권장</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">★</span><code class="eg-msg">Markdown Preview Enhanced — .md 파일 실시간 미리보기</code><span class="eg-cnt">권장</span></div>
+        </div>
+        <div class="note tip"><b>설치법</b> — VS Code 왼쪽 사이드바 Extensions 아이콘(<code class="kbd">Ctrl+Shift+X</code>) 클릭 → 검색창에 이름 입력 → Install</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Claude Code CLI 설치 ── -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="필수">CC</div>
+      <div class="stage__t">
+        <div class="stage__kicker">필수 · claude.ai/install</div>
+        <h2 class="stage__name">Claude Code CLI — AI 에이전트 핵심</h2>
+      </div>
+    </div>
+    <p class="stage__desc">이 교안의 모든 「직원 프롬프트」를 실행하는 핵심 엔진입니다. <b>네이티브 설치(ps1/sh)</b>를 권장합니다 — npm 설치 방식보다 안정적입니다.</p>
+
+    <div class="task" data-task="tp-claude">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">INSTALL · Claude Code</div>
+          <p class="task__title">Claude Code 네이티브 설치 (권장)</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="win-only">
+          <p style="font-size:13.5px; margin:0 0 6px;"><b>Windows PowerShell — 네이티브 설치 (1줄)</b></p>
+          <div class="cmdblock" data-cmd="irm https://claude.ai/install.ps1 | iex">
+            <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;PowerShell · 네이티브 설치 (권장)</span><button class="cmdblock__copy">복사</button></div>
+            <pre class="cmdblock__code"><span class="prompt">PS> </span><span class="cmd">irm</span> <span class="val">https://claude.ai/install.ps1</span> | <span class="cmd">iex</span></pre>
+          </div>
+          <div class="note warn" style="margin-top:8px;">
+            <b>⚠️ PowerShell PATH 문제 해결 — "claude를 찾을 수 없습니다" 오류 시</b><br>
+            설치 후 claude 명령이 인식되지 않으면 아래 순서로 해결하세요.
+          </div>
+          <p style="font-size:13px; margin:10px 0 5px; font-weight:700;">① PATH에 설치 경로 수동 추가</p>
+          <div class="cmdblock" data-cmd="$currentPath = [Environment]::GetEnvironmentVariable('PATH', 'User')
+[Environment]::SetEnvironmentVariable('PATH', &quot;$currentPath;$env:USERPROFILE\.local\bin&quot;, 'User')">
+            <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;PowerShell PATH 등록</span><button class="cmdblock__copy">복사</button></div>
+            <pre class="cmdblock__code"><span class="prompt">PS> </span>$p = [Environment]::GetEnvironmentVariable(<span class="val">'PATH'</span>, <span class="val">'User'</span>)
+<span class="prompt">PS> </span>[Environment]::SetEnvironmentVariable(<span class="val">'PATH'</span>, <span class="val">"$p;$env:USERPROFILE\.local\bin"</span>, <span class="val">'User'</span>)</pre>
+          </div>
+          <p style="font-size:13px; margin:10px 0 5px; font-weight:700;">② 터미널 완전 종료 후 재시작 → 확인</p>
+          <div class="note tip"><b>Claude Desktop 앱 충돌 주의</b> — Claude Desktop 앱이 설치돼 있으면 <code class="kbd">WindowsApps\Claude.exe</code>가 PATH를 선점해 CLI가 묻힐 수 있습니다. 이 경우 <code class="kbd">where claude</code> 명령으로 어느 경로가 먼저 실행되는지 확인하고, <code class="kbd">%USERPROFILE%\.local\bin</code>이 위에 오도록 PATH 순서를 조정하세요.</div>
+        </div>
+        <div class="mac-only">
+          <p style="font-size:13.5px; margin:0 0 6px;"><b>macOS / Linux — 네이티브 설치 (1줄)</b></p>
+          <div class="cmdblock" data-cmd="curl -fsSL https://claude.ai/install.sh | bash">
+            <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;터미널 · 네이티브 설치 (권장)</span><button class="cmdblock__copy">복사</button></div>
+            <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">curl</span> <span class="flag">-fsSL</span> <span class="val">https://claude.ai/install.sh</span> | <span class="cmd">bash</span></pre>
+          </div>
+          <div class="note tip">설치 후 터미널 재시작 또는 <code class="kbd">source ~/.zshrc</code> 실행. "command not found" 시: <code class="kbd">echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc</code></div>
+        </div>
+        <div class="cmdblock" data-cmd="claude --version">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;설치 확인</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">claude</span> <span class="flag">--version</span>   <span style="color:#5A8A6A;"># Claude Code x.x.x 출력되면 성공</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Obsidian 설치 ── -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="강력권장">OB</div>
+      <div class="stage__t">
+        <div class="stage__kicker">강력 권장 · obsidian.md</div>
+        <h2 class="stage__name">Obsidian — 지식 위키 뷰어 & 에디터</h2>
+      </div>
+    </div>
+    <p class="stage__desc">PART 3 지식 위키 볼트를 가장 잘 활용하는 도구입니다. 위키링크 그래프·백링크 시각화로 지식 간 연결이 눈에 보입니다. <b>무료, 계정 불필요, 완전 오프라인</b> 동작.</p>
+
+    <div class="task" data-task="tp-obsidian">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">INSTALL · Obsidian</div>
+          <p class="task__title">Obsidian 설치 & 초기 세팅 & 한글 설정</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="repobox" style="border-color:#7B52AB; box-shadow:0 0 0 4px rgba(123,82,171,.08), var(--shadow);">
+          <div class="repobox__head" style="background:#7B52AB;">
+            <span class="repobox__icon">🟣</span>
+            <div class="repobox__ht">
+              <span class="repobox__title">Obsidian 공식 다운로드</span>
+              <span class="repobox__sub">obsidian.md · v1.12.x · Windows·Mac·Linux·iOS·Android 지원</span>
+            </div>
+          </div>
+          <div class="repobox__body">
+            <div class="repobox__actions">
+              <a class="repo-btn primary" href="https://obsidian.md/download" target="_blank" rel="noopener" style="background:#7B52AB; box-shadow:0 2px 8px rgba(123,82,171,.3);">🟣 obsidian.md 다운로드 ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size:13.5px; margin:14px 0 6px; font-weight:700;">설치 후 초기 세팅 순서</p>
+        <div class="eg-wrap">
+          <div class="eg-row ok"><span class="eg-mark ok">1</span><code class="eg-msg">설치 완료 → "Create new vault" 클릭 → 볼트 이름·저장 위치 지정</code><span class="eg-cnt">볼트 생성</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">2</span><code class="eg-msg">Settings(톱니바퀴) → General → Language → 한국어 선택 → Relaunch</code><span class="eg-cnt">한국어 UI</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">3</span><code class="eg-msg">설정 → 편집기 → 기본 편집 모드 → "소스 모드" 권장 (마크다운 직접 편집)</code><span class="eg-cnt">편집 모드</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">4</span><code class="eg-msg">설정 → 파일 및 링크 → 새 노트 위치: "현재 파일과 동일한 폴더"</code><span class="eg-cnt">파일 위치</span></div>
+        </div>
+
+        <p style="font-size:13.5px; margin:14px 0 6px; font-weight:700;">🇰🇷 한글 인식 최적화 설정</p>
+        <div class="eg-wrap">
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">설정 → 편집기 → "IME 입력 지연 없음" 옵션 활성화 (한글 입력 끊김 방지)</code><span class="eg-cnt">필수</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">설정 → 커뮤니티 플러그인 → "제한 모드 비활성화" 후 플러그인 탐색</code><span class="eg-cnt">플러그인 전제</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">플러그인 설치: "IME Detector" — 한·영 전환 시 커서 위치 오류 방지</code><span class="eg-cnt">한글 안정성</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">플러그인 설치: "Korean Spell Checker" — 한글 맞춤법 검사</code><span class="eg-cnt">선택</span></div>
+        </div>
+
+        <p style="font-size:13.5px; margin:14px 0 6px; font-weight:700;">📦 이 교안 활용에 권장하는 커뮤니티 플러그인</p>
+        <div class="eg-wrap">
+          <div class="eg-row ok"><span class="eg-mark ok">★</span><code class="eg-msg">Dataview — 노트 frontmatter를 DB처럼 쿼리 (지식 볼트 검색에 핵심)</code><span class="eg-cnt">강력 권장</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">★</span><code class="eg-msg">Templater — 노트 템플릿 자동 삽입 (90. Settings/92. Templates/ 연동)</code><span class="eg-cnt">강력 권장</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">★</span><code class="eg-msg">Obsidian Git — 볼트를 Git으로 자동 커밋·백업</code><span class="eg-cnt">권장</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">Graph Analysis — 지식 노트 간 연결 강도 분석</code><span class="eg-cnt">선택</span></div>
+        </div>
+        <div class="note tip"><b>플러그인 설치법</b> — 설정 → 커뮤니티 플러그인 → 탐색 → 검색창에 이름 입력 → 설치 → 활성화. 각 플러그인 설정은 설치 후 플러그인 목록 → 옵션에서 개별 설정.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Antigravity 2.0 설치 ── -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="선택">AG</div>
+      <div class="stage__t">
+        <div class="stage__kicker">선택 · antigravity.google</div>
+        <h2 class="stage__name">Antigravity 2.0 — Google AI 에이전트 플랫폼</h2>
+      </div>
+    </div>
+    <p class="stage__desc">Google I/O 2026에서 발표된 Gemini 3.5 Flash 기반 에이전트 플랫폼입니다. 데스크톱 앱 + CLI(<code class="kbd">agy</code>) + SDK 세 가지로 구성됩니다. Gemini CLI를 사용 중이었다면 이것으로 교체하세요 (2026년 6월 18일 이후 Gemini CLI 종료).</p>
+
+    <div class="task" data-task="tp-ag">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">INSTALL · Antigravity 2.0</div>
+          <p class="task__title">데스크톱 앱 + CLI(agy) 설치</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="repobox" style="border-color:#1A73E8; box-shadow:0 0 0 4px rgba(26,115,232,.08), var(--shadow);">
+          <div class="repobox__head" style="background:#1A73E8;">
+            <span class="repobox__icon">🪂</span>
+            <div class="repobox__ht">
+              <span class="repobox__title">Antigravity 2.0 공식 다운로드</span>
+              <span class="repobox__sub">antigravity.google · v2.0.1 · Windows·Mac·Linux 지원 · 프리뷰 무료</span>
+            </div>
+          </div>
+          <div class="repobox__body">
+            <div class="repobox__actions">
+              <a class="repo-btn primary" href="https://antigravity.google" target="_blank" rel="noopener" style="background:#1A73E8; box-shadow:0 2px 8px rgba(26,115,232,.3);">🪂 antigravity.google ↗</a>
+              <a class="repo-btn secondary" href="https://developers.googleblog.com/an-important-update-transitioning-gemini-cli-to-antigravity-cli/" target="_blank" rel="noopener">Gemini → Antigravity 마이그레이션 공식 안내 ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size:13.5px; margin:12px 0 6px; font-weight:700;">데스크톱 앱 설치</p>
+        <ol style="font-size:13.5px; line-height:2;">
+          <li><code class="kbd">antigravity.google</code> → OS에 맞는 설치 파일 다운로드</li>
+          <li>설치 완료 → Google 계정 로그인 (AI Pro·Ultra 또는 무료 계정)</li>
+        </ol>
+
+        <p style="font-size:13.5px; margin:12px 0 6px; font-weight:700;">CLI(<code class="kbd">agy</code>) 설치</p>
+        <div class="win-only">
+          <div class="cmdblock" data-cmd="irm https://antigravity.google/install.ps1 | iex">
+            <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;Windows PowerShell</span><button class="cmdblock__copy">복사</button></div>
+            <pre class="cmdblock__code"><span class="prompt">PS> </span><span class="cmd">irm</span> <span class="val">https://antigravity.google/install.ps1</span> | <span class="cmd">iex</span></pre>
+          </div>
+        </div>
+        <div class="mac-only">
+          <div class="cmdblock" data-cmd="curl -fsSL https://antigravity.google/install.sh | bash">
+            <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;macOS / Linux</span><button class="cmdblock__copy">복사</button></div>
+            <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">curl</span> <span class="flag">-fsSL</span> <span class="val">https://antigravity.google/install.sh</span> | <span class="cmd">bash</span></pre>
+          </div>
+        </div>
+        <div class="cmdblock" data-cmd="agy --version">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;설치 확인</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">agy</span> <span class="flag">--version</span>   <span style="color:#5A8A6A;"># Antigravity CLI 1.x.x 출력</span></pre>
+        </div>
+        <div class="note tip"><b>Gemini CLI → Antigravity CLI 마이그레이션</b> — 기존 <code class="kbd">GEMINI.md</code> 파일은 그대로 사용 가능합니다. 스크립트 내 <code class="kbd">gemini</code> 바이너리 호출을 <code class="kbd">agy</code>로 교체하면 됩니다.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── OpenAI Codex CLI 설치 ── -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="선택">CX</div>
+      <div class="stage__t">
+        <div class="stage__kicker">선택 · chatgpt.com/codex</div>
+        <h2 class="stage__name">OpenAI Codex CLI — GPT 기반 터미널 에이전트</h2>
+      </div>
+    </div>
+    <p class="stage__desc">OpenAI의 터미널 AI 코딩 에이전트입니다. ChatGPT 유료 플랜 또는 API 키가 필요합니다.</p>
+
+    <div class="task" data-task="tp-codex">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">INSTALL · Codex CLI</div>
+          <p class="task__title">OpenAI Codex CLI 설치</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="win-only">
+          <p style="font-size:13.5px; margin:0 0 6px;"><b>Windows — 네이티브 설치 (권장)</b></p>
+          <div class="cmdblock" data-cmd="powershell -ExecutionPolicy ByPass -c &quot;irm https://chatgpt.com/codex/install.ps1 | iex&quot;">
+            <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;PowerShell</span><button class="cmdblock__copy">복사</button></div>
+            <pre class="cmdblock__code"><span class="prompt">PS> </span>powershell <span class="flag">-ExecutionPolicy ByPass</span> -c <span class="val">"irm https://chatgpt.com/codex/install.ps1 | iex"</span></pre>
+          </div>
+        </div>
+        <div class="mac-only">
+          <p style="font-size:13.5px; margin:0 0 6px;"><b>macOS / Linux — 네이티브 설치</b></p>
+          <div class="cmdblock" data-cmd="curl -fsSL https://chatgpt.com/codex/install.sh | sh">
+            <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;터미널</span><button class="cmdblock__copy">복사</button></div>
+            <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">curl</span> <span class="flag">-fsSL</span> <span class="val">https://chatgpt.com/codex/install.sh</span> | <span class="cmd">sh</span></pre>
+          </div>
+          <p style="font-size:13px; color:var(--ink-soft); margin:6px 0 0;">또는 Homebrew: <code class="kbd">brew install codex</code></p>
+        </div>
+        <p style="font-size:13.5px; margin:12px 0 6px;"><b>npm으로 설치하는 경우 (Node 22+ 필요)</b></p>
+        <div class="cmdblock" data-cmd="npm install -g @openai/codex">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;npm (대안)</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">npm install</span> <span class="flag">-g</span> <span class="val">@openai/codex</span></pre>
+        </div>
+        <div class="cmdblock" data-cmd="codex --version">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;설치 확인</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">codex</span> <span class="flag">--version</span>
+<span class="prompt">$ </span><span class="cmd">codex</span> <span class="cmd">auth</span>   <span style="color:#5A8A6A;"># ChatGPT 계정 또는 API 키로 인증</span></pre>
+        </div>
+        <div class="note warn"><b>Windows 주의</b> — Windows에서 npm으로 설치 시 PATH 문제가 발생하면 Claude Code CLI와 동일하게 <code class="kbd">%APPDATA%\npm</code> 경로를 PATH에 추가하세요.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 대단원 1 ══════════════ -->
+  <div id="part1" style="margin:52px 0 0; padding:18px 22px 16px; background:var(--blueprint); border-radius:16px 16px 0 0;">
+    <div style="font-family:var(--mono); font-size:11px; font-weight:700; color:rgba(255,255,255,.6); letter-spacing:.08em; margin-bottom:4px;">PART 1</div>
+    <div style="font-size:22px; font-weight:900; color:#fff; letter-spacing:-.02em;">시스템 구축</div>
+    <div style="font-size:13.5px; color:rgba(255,255,255,.75); margin-top:4px;">파일관리 프레임웍 설치 — LLM이 직접 읽고 작동하는 골격·규칙·스킬 일체 구성</div>
+  </div>
+
+<!-- ========== 단계 5 — LLM 중심 파일 시스템 구축 (심화) ========== -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="설치">1</div>
+      <div class="stage__t">
+        <div class="stage__kicker">System Install · 최초 1회</div>
+        <h2 class="stage__name">파일관리 프레임웍 설치</h2>
+      </div>
+    </div>
+    <p class="stage__desc">
+      Git과 LLM이 함께 작동하는 <b>회사 파일관리 프레임웍</b>을 처음부터 구축합니다.
+      빈 폴더에서 시작해 골격·지침 문서·자동화 스크립트·스킬까지 단계적으로 쌓아 올리면,
+      2단원(프로젝트 관리)과 3단원(지식 전환)의 토대가 완성됩니다.
+    </p>
+
+    <!-- 완성 후 능력 지도 -->
+    <div class="eg-wrap" style="margin-bottom:22px;">
+      <div class="eg-head">
+        <span class="eg-title">🗺️ 완성하면 생기는 능력</span>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0;">
+        <div style="padding:12px 16px; border-right:1px solid var(--paper-2); border-bottom:1px solid var(--paper-2); font-size:13.5px;"><b style="color:var(--blueprint);">📁 번호만 보고 위치 파악</b><br><span style="color:var(--ink-soft);">골격 + Johnny-Decimal 넘버링</span></div>
+        <div style="padding:12px 16px; border-bottom:1px solid var(--paper-2); font-size:13.5px;"><b style="color:var(--blueprint);">🤖 LLM이 규칙을 스스로 따름</b><br><span style="color:var(--ink-soft);">지침 문서(README/AGENTS + 어댑터)</span></div>
+        <div style="padding:12px 16px; border-right:1px solid var(--paper-2); font-size:13.5px;"><b style="color:var(--blueprint);">♻️ 인덱스 자동 갱신</b><br><span style="color:var(--ink-soft);">update-structure.sh + 훅</span></div>
+        <div style="padding:12px 16px; font-size:13.5px;"><b style="color:var(--blueprint);">🏗️ 수주 폴더 문답 자동 생성</b><br><span style="color:var(--ink-soft);">business-folder-creator 스킬</span></div>
+      </div>
+    </div>
+
+    <!-- ── 모듈 0 · 사전 준비 ── -->
+    <div class="task" data-task="t5-m0">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 1-0 · 사전 준비</div>
+          <p class="task__title">필수 도구 확인 & 작업 폴더 초기화</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <p>아래 명령어를 터미널에 각각 입력해 설치 여부를 확인합니다.</p>
+        <div class="cmdblock" data-cmd="git --version">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;필수 · git</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">git</span> <span class="flag">--version</span>          <span style="color:#5A8A6A;"># 필수 — 버전 숫자가 나와야 함</span></pre>
+        </div>
+        <div class="cmdblock" data-cmd="python3 --version">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;필수 · python3 (훅용)</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">python3</span> <span class="flag">--version</span>       <span style="color:#5A8A6A;"># macOS·Linux 기본 탑재</span></pre>
+        </div>
+        <p style="margin:16px 0 6px; font-size:13.5px;"><b>작업 폴더 만들기</b> — 이후 모든 명령은 이 폴더 안에서 실행합니다.</p>
+        <div class="cmdblock" data-cmd="mkdir -p ~/work && cd ~/work
+git init">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;작업 폴더 초기화</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">mkdir</span> <span class="flag">-p</span> <span class="val">~/work</span> && <span class="cmd">cd</span> <span class="val">~/work</span>
+<span class="prompt">$ </span><span class="cmd">git init</span>     <span style="color:#5A8A6A;"># 날짜 추론·이력 관리에 활용됨</span></pre>
+        </div>
+        <div class="note tip"><b>에디터 권장</b> — Claude Code(훅·스킬 자동 인식)를 권장합니다. Cursor·VS Code도 동작하나 모듈 4(훅)는 Claude Code 전용입니다.</div>
+        <div class="note warn"><b>Windows 주의</b> — 모듈 1~4는 bash 명령어 기준입니다. Windows에서는 <b>WSL2(Ubuntu)</b> 터미널을 사용하거나, 모듈 5의 심링크 주의사항을 먼저 확인하세요.</div>
+      </div>
+    </div>
+
+    <!-- ── 모듈 1 · 골격 ── -->
+    <div class="task" data-task="t5-m1">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 1-1 · 골격</div>
+          <p class="task__title">Johnny-Decimal 넘버링 폴더 골격 생성</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <p><b>자릿수가 좌표</b>입니다. 코드만 봐도 파일이 어디에 있는지 알 수 있습니다.<br>
+        <span style="font-size:13px; color:var(--ink-soft);">아래 트리에서 색깔 뱃지가 자릿수를 나타냅니다 — 파란 1자리(카테고리) → 주황 2자리(도메인) → 초록 3자리(단계)</span></p>
+
+        <!-- ───── 넘버링 트리 ───── -->
+        <div class="num-tree">
+          <div class="num-tree__top">
+            <span class="num-tree__title">📐 폴더 넘버링 구조 — 코드가 전역 유일</span>
+            <div class="num-tree__legend">
+              <span class="nleg"><span class="nb" style="background:#21456B;"></span>카테고리 1자리</span>
+              <span class="nleg"><span class="nb" style="background:#C2772A;"></span>도메인 2자리</span>
+              <span class="nleg"><span class="nb" style="background:#2F6B4F;"></span>단계/버킷 3자리</span>
+            </div>
+          </div>
+          <div class="num-tree__body">
+
+            <!-- 루트: 0 parking -->
+            <div class="nt-root">
+              <div class="nt-row">
+                <div class="nt-node">
+                  <span class="nt-code gray">0</span>
+                  <div class="nt-label"><b>0-parking</b> <span class="desc">아직 분류 안 된 파일 임시 보관소 — 어디 넣을지 모를 때 일단 여기</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 루트: 1 process -->
+            <div class="nt-root">
+              <div class="nt-row">
+                <div class="nt-node">
+                  <span class="nt-code cat">1</span>
+                  <div class="nt-label"><b>1-process</b> · 생애주기형 <span class="desc">시작→종료가 있는 프로젝트. 단계를 따라 진행되며 완료 후 아카이브됨</span></div>
+                </div>
+              </div>
+              <!-- 도메인 11 -->
+              <div class="nt-row">
+                <div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code dom">11</span>
+                  <div class="nt-label"><b>11-research</b> <span class="desc">개발·연구·지식 관련 프로젝트</span></div>
+                </div>
+              </div>
+              <div class="nt-row">
+                <div class="nt-indent"></div><div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code step">110</span>
+                  <div class="nt-label">reference <span class="desc">참고자료 보관 — 읽기 전용 레퍼런스</span></div>
+                </div>
+              </div>
+              <div class="nt-row">
+                <div class="nt-indent"></div><div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code step">111</span>
+                  <div class="nt-label">inbox <span class="desc">→ 111-new (신규) · 112-renewal (갱신)</span></div>
+                </div>
+              </div>
+              <div class="nt-row">
+                <div class="nt-indent"></div><div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code step">112</span>
+                  <div class="nt-label">action <span class="desc">현재 진행 중인 작업 공간</span></div>
+                </div>
+              </div>
+              <div class="nt-row">
+                <div class="nt-indent"></div><div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code step">113</span>
+                  <div class="nt-label">result <span class="desc">완료 산출물 보관</span></div>
+                </div>
+              </div>
+              <div class="nt-row">
+                <div class="nt-indent"></div><div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code step">114</span>
+                  <div class="nt-label">share <span class="desc">공유·배포용 최종 파일</span></div>
+                </div>
+              </div>
+              <!-- 도메인 12 -->
+              <div class="nt-row">
+                <div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code dom">12</span>
+                  <div class="nt-label"><b>12-business</b> <span class="desc">회사 운영 · 수주 · 계약 프로젝트 ← <b style="color:#FFD580;">신규 수주 폴더 기본 위치</b></span></div>
+                </div>
+              </div>
+              <div class="nt-row">
+                <div class="nt-indent"></div><div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code step">121</span>
+                  <div class="nt-label">inbox <span class="desc">← 수주 프로젝트 시작점. 새 계약 폴더는 여기서 생성</span></div>
+                </div>
+              </div>
+              <div class="nt-row">
+                <div class="nt-indent"></div><div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code step">122</span>
+                  <div class="nt-label">action <span class="desc">설계·시공 진행 중 단계</span></div>
+                </div>
+              </div>
+              <div class="nt-row">
+                <div class="nt-indent"></div><div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code step">123</span>
+                  <div class="nt-label">result <span class="desc">준공·납품 완료 파일</span></div>
+                </div>
+              </div>
+              <!-- 도메인 13 -->
+              <div class="nt-row">
+                <div class="nt-indent last"></div>
+                <div class="nt-node">
+                  <span class="nt-code dom">13</span>
+                  <div class="nt-label"><b>13-personal</b> <span class="desc">개인 업무 · 자기계발</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 루트: 2 routine -->
+            <div class="nt-root" style="margin-top:10px;">
+              <div class="nt-row">
+                <div class="nt-node">
+                  <span class="nt-code cat">2</span>
+                  <div class="nt-label"><b>2-routine</b> · 반복업무형 <span class="desc">주기적으로 반복되는 루틴. 시작·종료 없이 계속 쌓임</span></div>
+                </div>
+              </div>
+              <div class="nt-row">
+                <div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code dom">21</span>
+                  <div class="nt-label"><b>21-research</b></div>
+                </div>
+              </div>
+              <div class="nt-row">
+                <div class="nt-indent"></div><div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code step">210</span>
+                  <div class="nt-label">routines <span class="desc">작업 공간 · 양식 · 템플릿 보관</span></div>
+                </div>
+              </div>
+              <div class="nt-row">
+                <div class="nt-indent"></div><div class="nt-indent"></div>
+                <div class="nt-node">
+                  <span class="nt-code step">211</span>
+                  <div class="nt-label">outputs <span class="desc">루틴 결과물 — "푸시(/push)" 시 이곳으로 이동</span></div>
+                </div>
+              </div>
+              <div class="nt-row">
+                <div class="nt-indent last"></div>
+                <div class="nt-node">
+                  <span class="nt-code dom">22</span>
+                  <div class="nt-label"><b>22-business</b> <span class="desc">회사 운영 반복 업무 (주간 보고, 정기 회의록 등)</span></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 예시 해독 -->
+            <div class="nt-example">
+              <span style="font-size:11px; font-weight:700; color:#4A6A8A; letter-spacing:.04em; white-space:nowrap;">코드 읽기 :</span>
+              <span class="nt-ex-item">
+                <span class="nt-code ex">112</span>
+                <span class="nt-ex-eq">=</span>
+                <span class="nt-ex-txt">process · research · <b style="color:#B5EAD7;">action</b></span>
+              </span>
+              <span class="nt-ex-sep">·</span>
+              <span class="nt-ex-item">
+                <span class="nt-code ex">121</span>
+                <span class="nt-ex-eq">=</span>
+                <span class="nt-ex-txt">process · business · <b style="color:#FFD580;">inbox</b></span>
+                <span class="nt-ex-sub">← 신규 수주 기본 위치</span>
+              </span>
+              <span class="nt-ex-sep">·</span>
+              <span class="nt-ex-item">
+                <span class="nt-code ex">210</span>
+                <span class="nt-ex-eq">=</span>
+                <span class="nt-ex-txt">routine · research · <b style="color:#80C8FF;">routines</b></span>
+              </span>
+            </div>
+
+          </div>
+        </div>
+
+        <p style="font-size:13.5px; margin:0 0 6px;"><b>① Process 골격 생성</b> (생애주기 5단계 × 3도메인)</p>
+        <div class="cmdblock" data-cmd="cd ~/work
+for d in 11-research 12-business 13-personal; do
+  base=&quot;1-process/$d&quot;; n=&quot;${d%%-*}&quot;
+  mkdir -p &quot;$base/${n}0-reference&quot; \
+           &quot;$base/${n}1-inbox/${n}11-new&quot; &quot;$base/${n}1-inbox/${n}12-renewal&quot; \
+           &quot;$base/${n}2-action&quot; &quot;$base/${n}3-result&quot; &quot;$base/${n}4-share&quot;
+done">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;Process 폴더 생성</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">for</span> d in 11-research 12-business 13-personal; <span class="cmd">do</span>
+    base=<span class="val">"1-process/$d"</span>; n=<span class="val">"${d%%-*}"</span>
+    <span class="cmd">mkdir -p</span> <span class="val">"$base/${n}0-reference"</span> \
+             <span class="val">"$base/${n}1-inbox/${n}11-new"</span> <span class="val">"$base/${n}1-inbox/${n}12-renewal"</span> \
+             <span class="val">"$base/${n}2-action"</span> <span class="val">"$base/${n}3-result"</span> <span class="val">"$base/${n}4-share"</span>
+  <span class="cmd">done</span></pre>
+        </div>
+
+        <p style="font-size:13.5px; margin:12px 0 6px;"><b>② Routine + 주차장 생성</b></p>
+        <div class="cmdblock" data-cmd="for d in 21-research 22-business 23-personal; do
+  base=&quot;2-routine/$d&quot;; n=&quot;${d%%-*}&quot;
+  mkdir -p &quot;$base/${n}0-routines&quot; &quot;$base/${n}1-outputs&quot;
+done
+mkdir -p 0-parking">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;Routine + 주차장</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">for</span> d in 21-research 22-business 23-personal; <span class="cmd">do</span>
+    base=<span class="val">"2-routine/$d"</span>; n=<span class="val">"${d%%-*}"</span>
+    <span class="cmd">mkdir -p</span> <span class="val">"$base/${n}0-routines"</span> <span class="val">"$base/${n}1-outputs"</span>
+  <span class="cmd">done</span>
+<span class="prompt">$ </span><span class="cmd">mkdir -p</span> <span class="val">0-parking</span></pre>
+        </div>
+
+        <p style="font-size:13.5px; margin:12px 0 6px;"><b>③ 빈 폴더 보존용 .gitkeep 심기</b></p>
+        <div class="cmdblock" data-cmd="find 0-parking 1-process 2-routine -type d -empty -exec touch {}/.gitkeep \;">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;.gitkeep 심기</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">find</span> 0-parking 1-process 2-routine <span class="flag">-type d -empty -exec</span> <span class="cmd">touch</span> <span class="val">{}/.gitkeep</span> \;</pre>
+        </div>
+
+        <p style="font-size:13.5px; margin:12px 0 6px;"><b>✅ 확인</b></p>
+        <div class="cmdblock" data-cmd="find 1-process 2-routine 0-parking -type d | sort | head -20">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;결과 확인</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">find</span> 1-process 2-routine 0-parking <span class="flag">-type d</span> | <span class="cmd">sort</span> | <span class="cmd">head</span> <span class="flag">-20</span></pre>
+        </div>
+        <div class="note tip"><code class="kbd">1-process/11-research/111-inbox/1111-new</code> 같은 4자리 폴더까지 보이면 성공.</div>
+      </div>
+    </div>
+
+    <!-- ── 모듈 2 · 지침 문서 ── -->
+    <div class="task" data-task="t5-m2">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 1-2 · 지침 문서</div>
+          <p class="task__title">LLM이 스스로 규칙을 따르게 하는 문서 4종 작성</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="note tip"><b>핵심 설계 원칙</b> — <b>정본은 1곳, 나머지는 가리키기만.</b> 같은 규칙을 두 곳에 쓰지 않습니다. 고칠 때는 정본 한 곳만.</div>
+
+        <div class="eg-wrap" style="margin:12px 0 16px;">
+          <div class="eg-head"><span class="eg-title">📄 정본 / 어댑터 구조</span></div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0;">
+            <div style="padding:12px 16px; border-right:1px solid var(--paper-2); font-size:13px;">
+              <div style="font-family:var(--mono); font-size:11px; font-weight:700; color:var(--blueprint); margin-bottom:6px;">정본 (엔진 중립 · 2벌)</div>
+              <div style="margin:4px 0;"><code class="kbd">README.md</code> — 구조·넘버링 정본</div>
+              <div style="margin:4px 0;"><code class="kbd">AGENTS.md</code> — 작업·문서규칙 정본</div>
+            </div>
+            <div style="padding:12px 16px; font-size:13px;">
+              <div style="font-family:var(--mono); font-size:11px; font-weight:700; color:var(--amber); margin-bottom:6px;">어댑터 (얇은 라우터 · 엔진별)</div>
+              <div style="margin:4px 0;"><code class="kbd">CLAUDE.md</code> — Claude Code 진입점</div>
+              <div style="margin:4px 0;"><code class="kbd">GEMINI.md</code> — Gemini 진입점</div>
+            </div>
+          </div>
+          <div style="padding:10px 16px; background:var(--paper); border-top:1px solid var(--line); font-size:12.5px; color:var(--ink-soft);">
+            어댑터는 정본을 링크로 가리킬 뿐 — 두 파일을 동기화할 필요가 없어 <b>drift(규칙 엇갈림) 방지</b>
+          </div>
+        </div>
+
+        <p style="font-size:13.5px; margin:0 0 6px;"><b>README.md 필수 섹션 (골격)</b></p>
+        <pre class="wiki">1. 문서 지도 — 어떤 정본이 어디 있는지 표
+2. 최상위 카테고리 — process/routine/parking 정의
+3. 도메인 3종 — research/business/personal 구분
+   ⚠️ "개발·앱=research, 회사운영=business" 핵심 구분 명시
+4. Process 5단계 — reference/inbox(new·renewal)/action/result/share
+5. Routine 모델 — routines(작업공간)/outputs(결과) + "푸시" 개념
+6. 넘버링 — 좌표 규칙 (모듈 1)
+7. 배치 규칙 — 새 항목을 어디 둘지 결정 순서</pre>
+
+        <p style="font-size:13.5px; margin:14px 0 6px;"><b>CLAUDE.md 뼈대</b> (200줄 이하 라우터로 유지)</p>
+        <pre class="wiki"><span class="b"># CLAUDE.md — ~/work 에이전트 진입점</span>
+> 얇은 라우터. 상세는 링크된 파일에, 여기선 가리키기만. 200줄 이하 유지.
+
+<span class="b">## 이 워크스페이스</span>
+구조·배치·단계의미 정본 → README.md
+- 1-process(생애주기) · 2-routine(반복) · 0-parking(미분류)
+- 배치 모르면 → STRUCTURE.md 먼저 읽기 (전체 탐색 금지)
+
+<span class="b">## 에이전트가 지킬 핵심 (상세 → AGENTS.md)</span>
+1. 배치는 README "배치 규칙"대로
+2. 넘버링 Johnny-Decimal 준수
+3. 단계 간 이동 시 .git 유지/제거 반드시 문답
+4. 파일찾기 · 푸시 · 비즈니스 폴더 스킬 연계
+
+<span class="b">## 링크</span>
+README.md / AGENTS.md / GEMINI.md / STRUCTURE.md</pre>
+
+        <div class="note warn"><b>진입 파일 200줄 규칙</b> — CLAUDE.md·GEMINI.md는 라우터이므로 200줄을 넘기지 않습니다. 상세 규칙은 모두 AGENTS.md에.</div>
+
+        <p style="font-size:13.5px; margin:14px 0 4px;"><b>✅ 확인</b></p>
+        <div class="slip">
+          <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 AI 직원 지시 · 완성 검증</span><button class="slip__copy">복사</button></div>
+          <p class="slip__text">README.md와 AGENTS.md만 읽고 나서, 새 계약 수주 폴더는 어디에 만들어야 하는지 알려줘.</p>
+        </div>
+        <div class="reply">기대 응답 — <b>1-process/12-business/121-inbox</b> (새 수주 = process·business·inbox·new)</div>
+      </div>
+    </div>
+
+    <!-- ── 모듈 3 · 자동화 ── -->
+    <div class="task" data-task="t5-m3">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 1-3 · 자동화</div>
+          <p class="task__title">구조 인덱스 자동 재생성 스크립트 (update-structure.sh)</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="note tip"><b>왜 만드나</b> — LLM이 매번 <code class="kbd">find/ls</code>로 전체 탐색하면 토큰이 낭비됩니다. <code class="kbd">STRUCTURE.md</code> 한 파일만 읽으면 현재 배치를 파악할 수 있게 합니다.</div>
+        <p style="font-size:13.5px; margin:12px 0 6px;"><code class="kbd">~/work/update-structure.sh</code> 파일을 아래 내용으로 작성합니다.</p>
+        <div class="cmdblock" data-cmd="#!/usr/bin/env bash
+# STRUCTURE.md 자동 재생성기. 코드 폴더(숫자 시작)만 재귀, 그 외는 나열만. 멱등.
+cd &quot;$(dirname &quot;$0&quot;)&quot; || exit 1
+OUT=&quot;STRUCTURE.md&quot;
+TODAY=&quot;$(date +%Y-%m-%d)&quot;
+
+walk() {
+  find &quot;$1&quot; -mindepth 1 -maxdepth 1 -type d 2>/dev/null | sort | while read -r d; do
+    local n code; n=$(basename &quot;$d&quot;); code=&quot;${n%%-*}&quot;
+    echo &quot;$2$n/&quot;
+    if [[ &quot;$code&quot; =~ ^[0-9]+$ ]]; then
+      walk &quot;$d&quot; &quot;$2  &quot;
+    fi
+  done
+}
+
+gen() {
+  echo &quot;# STRUCTURE.md — ~/work 구조 인덱스 (자동 생성, 직접 편집 금지)&quot;
+  echo; echo &quot;최종 자동 갱신: $TODAY&quot;; echo
+  echo '## 현재 배치 (폴더만)'
+  echo '```'
+  for cat in 0-parking 1-process 2-routine; do
+    [ -d &quot;$cat&quot; ] || continue
+    echo &quot;$cat/&quot;; walk &quot;$cat&quot; &quot;  &quot;; echo
+  done
+  echo '```'
+}
+
+new=&quot;$(gen)&quot;
+if [ -f &quot;$OUT&quot; ] &amp;&amp; diff &lt;(grep -v '^최종 자동 갱신:' &quot;$OUT&quot;) &lt;(printf '%s\n' &quot;$new&quot; | grep -v '^최종 자동 갱신:') &gt;/dev/null 2&gt;&amp;1; then
+  exit 0
+fi
+printf '%s\n' &quot;$new&quot; &gt; &quot;$OUT&quot;
+echo &quot;✓ STRUCTURE.md 갱신 ($TODAY)&quot;">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;update-structure.sh 전체</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="val">cat</span> <span class="flag">&gt;</span> ~/work/update-structure.sh <span class="flag">&lt;&lt;'EOF'</span>
+<span style="color:#8AACC8;">#!/usr/bin/env bash</span>
+<span style="color:#5A8A6A;"># STRUCTURE.md 자동 재생성기 · 코드 폴더만 재귀 · 멱등</span>
+<span class="cmd">cd</span> <span class="val">"$(dirname "$0")"</span> || exit 1
+OUT=<span class="val">"STRUCTURE.md"</span>; TODAY=<span class="val">"$(date +%Y-%m-%d)"</span>
+
+walk() {
+  <span class="cmd">find</span> <span class="val">"$1"</span> -mindepth 1 -maxdepth 1 -type d | <span class="cmd">sort</span> | <span class="cmd">while read -r</span> d; <span class="cmd">do</span>
+    n=$(<span class="cmd">basename</span> <span class="val">"$d"</span>); code=<span class="val">"${n%%-*}"</span>
+    <span class="cmd">echo</span> <span class="val">"$2$n/"</span>
+    [[ <span class="val">"$code"</span> =~ ^[0-9]+$ ]] && walk <span class="val">"$d"</span> <span class="val">"$2  "</span>
+  <span class="cmd">done</span>
+}
+
+gen() {
+  <span class="cmd">echo</span> <span class="val">"# STRUCTURE.md — 구조 인덱스 (자동 생성)"</span>
+  <span class="cmd">echo</span>; <span class="cmd">echo</span> <span class="val">"최종 자동 갱신: $TODAY"</span>; <span class="cmd">echo</span>
+  <span class="cmd">echo</span> <span class="flag">'```'</span>
+  <span class="cmd">for</span> cat in 0-parking 1-process 2-routine; <span class="cmd">do</span>
+    [ -d <span class="val">"$cat"</span> ] || <span class="cmd">continue</span>
+    <span class="cmd">echo</span> <span class="val">"$cat/"</span>; walk <span class="val">"$cat"</span> <span class="val">"  "</span>; <span class="cmd">echo</span>
+  <span class="cmd">done</span>
+  <span class="cmd">echo</span> <span class="flag">'```'</span>
+}
+
+new=<span class="val">"$(gen)"</span>
+<span class="cmd">printf</span> <span class="val">'%s\n'</span> <span class="val">"$new"</span> > <span class="val">"$OUT"</span>
+<span class="cmd">echo</span> <span class="val">"✓ STRUCTURE.md 갱신 ($TODAY)"</span>
+<span class="flag">EOF</span>
+<span class="prompt">$ </span><span class="cmd">chmod</span> <span class="flag">+x</span> ~/work/update-structure.sh</pre>
+        </div>
+
+        <p style="font-size:13.5px; margin:12px 0 6px;"><b>✅ 확인 — 멱등(같은 결과 보장) 검증</b></p>
+        <div class="cmdblock" data-cmd="cd ~/work && bash update-structure.sh && bash update-structure.sh">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;멱등 확인 · 두 번 실행</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">cd</span> ~/work && <span class="cmd">bash</span> update-structure.sh && <span class="cmd">bash</span> update-structure.sh</pre>
+        </div>
+        <div class="note tip">두 번째 실행에서 "갱신" 메시지가 <b>안 나와야</b> 정상(멱등). 새 폴더를 만들면 그때만 갱신됩니다.</div>
+      </div>
+    </div>
+
+    <!-- ── 모듈 4 · 훅 ── -->
+    <div class="task" data-task="t5-m4">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 1-4 · 자동화 훅</div>
+          <p class="task__title">폴더 변경 시 인덱스 자동 실행 — Claude Code 훅 연결</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="note tip"><b>작동 원리</b> — Claude Code가 <code class="kbd">mkdir/mv/rm</code> 같은 구조 변경 명령을 실행하면, PostToolUse 훅이 자동으로 <code class="kbd">update-structure.sh</code>를 호출합니다. 다른 에디터는 훅이 없으므로 직접 실행.</div>
+
+        <p style="font-size:13.5px; margin:12px 0 6px;"><b>① 훅 스크립트 작성</b> <code class="kbd">~/work/.claude/hooks/on-bash.sh</code></p>
+        <div class="cmdblock" data-cmd="mkdir -p ~/work/.claude/hooks
+cat > ~/work/.claude/hooks/on-bash.sh <<'EOF'
+#!/usr/bin/env bash
+input=$(cat)
+cmd=$(printf '%s' &quot;$input&quot; | python3 -c &quot;import sys,json
+try:
+    print(json.load(sys.stdin).get('tool_input',{}).get('command',''))
+except Exception:
+    pass&quot; 2>/dev/null)
+if printf '%s' &quot;$cmd&quot; | grep -qE '(^|[;&| ])(mkdir|rmdir|mv|cp|rm)([ ]|$)'; then
+  bash &quot;${CLAUDE_PROJECT_DIR:-.}/update-structure.sh&quot; >/dev/null 2>&amp;1
+fi
+exit 0
+EOF
+chmod +x ~/work/.claude/hooks/on-bash.sh">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;훅 스크립트 작성</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">mkdir -p</span> ~/.claude/hooks
+<span class="prompt">$ </span><span class="cmd">cat</span> <span class="flag">&gt;</span> ~/work/.claude/hooks/on-bash.sh <span class="flag">&lt;&lt;'EOF'</span>
+<span style="color:#8AACC8;">#!/usr/bin/env bash</span>
+input=$(<span class="cmd">cat</span>)
+cmd=$(printf <span class="val">'%s'</span> <span class="val">"$input"</span> | python3 -c <span class="val">"import sys,json
+try: print(json.load(sys.stdin).get('tool_input',{}).get('command',''))
+except: pass"</span>)
+<span class="cmd">if</span> printf <span class="val">'%s'</span> <span class="val">"$cmd"</span> | grep -qE <span class="val">'(mkdir|rmdir|mv|cp|rm)'</span>; <span class="cmd">then</span>
+  bash <span class="val">"${CLAUDE_PROJECT_DIR:-.}/update-structure.sh"</span> >/dev/null 2>&1
+<span class="cmd">fi</span>
+exit 0
+<span class="flag">EOF</span>
+<span class="prompt">$ </span><span class="cmd">chmod</span> <span class="flag">+x</span> ~/work/.claude/hooks/on-bash.sh</pre>
+        </div>
+
+        <p style="font-size:13.5px; margin:12px 0 6px;"><b>② settings.json 훅 등록</b> <code class="kbd">~/work/.claude/settings.json</code></p>
+        <div class="cmdblock" data-cmd='{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command",
+            "command": "bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/on-bash.sh\"" }
+        ]
+      }
+    ]
+  }
+}'>
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;settings.json</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code">{
+  <span class="flag">"hooks"</span>: {
+    <span class="flag">"PostToolUse"</span>: [
+      {
+        <span class="flag">"matcher"</span>: <span class="val">"Bash"</span>,
+        <span class="flag">"hooks"</span>: [
+          { <span class="flag">"type"</span>: <span class="val">"command"</span>,
+            <span class="flag">"command"</span>: <span class="val">"bash \"${CLAUDE_PROJECT_DIR:-.}/.claude/hooks/on-bash.sh\""</span> }
+        ]
+      }
+    ]
+  }
+}</pre>
+        </div>
+
+        <p style="font-size:13.5px; margin:12px 0 4px;"><b>✅ 확인</b></p>
+        <div class="note tip">Claude Code로 프로젝트를 열면 <b>훅 신뢰 승인 프롬프트가 1회</b> 뜹니다 → 반드시 승인. 이후 <code class="kbd">mkdir 0-parking/test</code> 실행 시 STRUCTURE.md의 날짜가 갱신되면 성공.</div>
+      </div>
+    </div>
+
+    <!-- ── 모듈 5 · 스킬 ── -->
+    <div class="task" data-task="t5-m5">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 1-5 · 스킬</div>
+          <p class="task__title">수주·계약 폴더 자동 생성 스킬 (business-folder-creator)</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="note tip"><b>한 벌, 두 엔진</b> — SKILL.md 실본체를 <code class="kbd">.agents/skills/</code> 에 두고, <code class="kbd">.claude/skills/</code> 에는 심링크만 — drift 없이 Claude·Gemini 공유.</div>
+
+        <p style="font-size:13.5px; margin:12px 0 6px;"><b>① SKILL.md 작성</b> <code class="kbd">~/work/.agents/skills/business-folder-creator/SKILL.md</code></p>
+        <pre class="wiki"><span class="b">---
+name: business-folder-creator
+description: "비즈니스(수주·계약) 프로젝트 폴더를
+  1-process/12-business/ 하위에 문답으로 생성.
+  트리거: 비즈니스 폴더 만들어 / 수주 프로젝트 시작 / 12에 폴더 만들어"
+user-invocable: true
+---</span>
+
+<span class="b">## 작동 범위</span>
+1-process/12-business/ 하위에서만 작동.
+신규=121-inbox, 진행=122-action. 그 밖이면 안내 후 중단.
+
+<span class="b">## 1단계 — 폴더명</span>
+YYYY_MM_DD_발주자_계약명_생성자 (공백→- / 구분→_)
+
+<span class="b">## 2단계 — git 관리 여부</span>
+로컬(git init) / GitHub(gh repo create) / 없음
+
+<span class="b">## 3단계 — 커밋 태그 분류</span>
+도면 / 문서 / 엑셀 / 사진·현장 / 발주자 제공 자료 → _project.md에 기록
+
+<span class="b">## 4단계 — 커밋 헬퍼</span>
+태그 선택 → 제목(한글25/영문50자 이내) → [태그] 제목 형식으로 커밋</pre>
+
+        <p style="font-size:13.5px; margin:14px 0 6px;"><b>② Claude에 심링크로 노출</b></p>
+        <div class="cmdblock" data-cmd="cd ~/work
+mkdir -p .claude/skills
+ln -s ../../.agents/skills/business-folder-creator .claude/skills/business-folder-creator">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;심링크 생성</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">cd</span> ~/work
+<span class="prompt">$ </span><span class="cmd">mkdir -p</span> .claude/skills
+<span class="prompt">$ </span><span class="cmd">ln -s</span> <span class="val">../../.agents/skills/business-folder-creator</span> .claude/skills/business-folder-creator</pre>
+        </div>
+        <div class="note warn"><b>Windows 주의</b> — 심링크가 깨지면 <code class="kbd">git config --global core.symlinks true</code> 후 재클론하거나, 실본체를 직접 복사.</div>
+
+        <p style="font-size:13.5px; margin:12px 0 4px;"><b>✅ 확인</b></p>
+        <div class="slip">
+          <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 Claude Code 스킬 호출</span><button class="slip__copy">복사</button></div>
+          <p class="slip__text">12에 비즈니스 폴더 만들어줘.</p>
+        </div>
+        <div class="reply">기대 동작 — 발주자→계약명→생성자→날짜 순으로 <b>한 번에 한 가지씩</b> 문답한 뒤 폴더 생성·git init·커밋 태그 등록까지 자동 진행.</div>
+      </div>
+    </div>
+
+    <!-- ── 모듈 6 · 최종 검증 ── -->
+    <div class="task" data-task="t5-m6">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 1-6 · 최종 검증</div>
+          <p class="task__title">통합 체크리스트 — 전 모듈 한 번에 검증</p>
+        </div>
+      </div>
+      <div class="task__detail">
+
+        <!-- 정답지 레포 배너 -->
+        <div class="repobox">
+          <div class="repobox__head">
+            <span class="repobox__icon">📦</span>
+            <div class="repobox__ht">
+              <span class="repobox__title">정답지 레포지터리 — 완성본을 먼저 받아보세요</span>
+              <span class="repobox__sub">github.com/kkh2114/file-system-creator · 공개 레포 · 클론 즉시 사용 가능</span>
+            </div>
+          </div>
+          <div class="repobox__body">
+            <p class="repobox__why">
+              이 교안(모듈 1~5)은 <b>직접 만들어보며 익히는 실습 과정</b>입니다.
+              그런데 처음부터 혼자 만들다 막히면 시간을 크게 낭비할 수 있습니다.<br>
+              아래 레포지터리는 <b>교안의 완성 결과물 — 골격·지침·스크립트·훅·스킬이 전부 들어 있는 정답지</b>입니다.
+              <span class="wr">실제 프로젝트 데이터는 포함되지 않으며</span>, 구조와 규칙 파일만 담겨 있어 안전하게 공유됩니다.
+            </p>
+
+            <div class="repobox__grid">
+              <div class="repobox__point">
+                <span class="pi">🔍</span>
+                <div><b>막힐 때 대조용</b>모듈별로 만들다 결과물이 맞는지 확인하는 정답지로 사용</div>
+              </div>
+              <div class="repobox__point">
+                <span class="pi">⚡</span>
+                <div><b>즉시 사용 시작</b>클론 후 내 폴더명·규칙만 수정하면 바로 운영 투입 가능</div>
+              </div>
+              <div class="repobox__point">
+                <span class="pi">📋</span>
+                <div><b>팀 전체 배포</b>클론 링크 하나를 팀원에게 공유하면 동일 환경 즉시 구성</div>
+              </div>
+              <div class="repobox__point">
+                <span class="pi">🔒</span>
+                <div><b>데이터 없음 · 안전</b>골격·스크립트·스킬 정의만 포함 — 실제 도면·견적서 없음</div>
+              </div>
+            </div>
+
+            <div class="repobox__actions">
+              <a class="repo-btn primary" href="https://github.com/kkh2114/file-system-creator" target="_blank" rel="noopener">
+                🐙 GitHub 레포 열기 ↗
+              </a>
+              <a class="repo-btn secondary" href="https://github.com/kkh2114/file-system-creator/archive/refs/heads/main.zip" target="_blank" rel="noopener">
+                📥 ZIP으로 다운로드
+              </a>
+            </div>
+
+            <div class="repobox__clone">
+              <div class="cmdblock" data-cmd="git clone https://github.com/kkh2114/file-system-creator.git ~/work">
+                <div class="cmdblock__bar">
+                  <span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;터미널 · 클론 명령어 — 그대로 복사해서 실행</span>
+                  <button class="cmdblock__copy">복사</button>
+                </div>
+                <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">git clone</span> <span class="val">https://github.com/kkh2114/file-system-creator.git</span> <span class="flag">~/work</span>
+<span style="color:#5A8A6A;"># ~/work 폴더에 정답지 전체가 내려받아집니다</span>
+<span style="color:#5A8A6A;"># 이미 ~/work가 있다면 뒤의 ~/work를 원하는 경로로 변경하세요</span></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cmdblock" data-cmd="cd ~/work
+# 1) 골격
+find 1-process 2-routine 0-parking -type d | wc -l
+# 2) 멱등 확인
+bash update-structure.sh; bash update-structure.sh
+# 3) 구조 변경 → 갱신
+mkdir 0-parking/_t && bash update-structure.sh && rmdir 0-parking/_t
+# 4) 스킬 심링크
+test -L .claude/skills/business-folder-creator && echo 'skill link OK'">
+          <div class="cmdblock__bar"><span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;통합 검증 4단계</span><button class="cmdblock__copy">복사</button></div>
+          <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">cd</span> ~/work
+<span style="color:#5A8A6A;"># 1) 골격 — 충분한 수의 폴더가 생성됐는지</span>
+<span class="prompt">$ </span><span class="cmd">find</span> 1-process 2-routine 0-parking <span class="flag">-type d</span> | <span class="cmd">wc -l</span>
+<span style="color:#5A8A6A;"># 2) 멱등 — 두 번째 실행에서 무출력이어야 정상</span>
+<span class="prompt">$ </span><span class="cmd">bash</span> update-structure.sh; <span class="cmd">bash</span> update-structure.sh
+<span style="color:#5A8A6A;"># 3) 변경 감지 — 폴더 생성 후 갱신 확인</span>
+<span class="prompt">$ </span><span class="cmd">mkdir</span> 0-parking/_t && <span class="cmd">bash</span> update-structure.sh && <span class="cmd">rmdir</span> 0-parking/_t
+<span style="color:#5A8A6A;"># 4) 스킬 심링크</span>
+<span class="prompt">$ </span><span class="cmd">test</span> <span class="flag">-L</span> .claude/skills/business-folder-creator && <span class="cmd">echo</span> <span class="val">"skill link OK"</span></pre>
+        </div>
+
+        <!-- 문서 자기점검 -->
+        <p style="font-size:13.5px; margin:14px 0 8px; font-weight:700;">📋 문서 자기점검 (모듈 2 원칙)</p>
+        <div class="eg-wrap">
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">진입 파일(README/AGENTS/CLAUDE/GEMINI) 각 200줄 이하인가</code><span class="eg-cnt">확인</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">같은 규칙이 두 파일에 중복 서술돼 있지 않은가 (정본 1곳)</code><span class="eg-cnt">확인</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">CLAUDE.md·GEMINI.md는 정본을 가리키기만 하는가</code><span class="eg-cnt">확인</span></div>
+        </div>
+
+        <!-- 모듈↔파일 대응표 -->
+        <p style="font-size:13.5px; margin:14px 0 8px; font-weight:700;">📦 모듈 ↔ 결과 파일 대응</p>
+        <div class="eg-wrap">
+          <div class="eg-head"><span class="eg-title">완성하면 생기는 파일들</span></div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:13px; font-family:var(--mono);">
+              <thead><tr style="background:var(--paper-2);">
+                <th style="padding:8px 14px; text-align:left; border-bottom:1px solid var(--line); color:var(--ink-soft);">모듈</th>
+                <th style="padding:8px 14px; text-align:left; border-bottom:1px solid var(--line); color:var(--ink-soft);">만든 것</th>
+                <th style="padding:8px 14px; text-align:left; border-bottom:1px solid var(--line); color:var(--ink-soft);">결과 파일·폴더</th>
+              </tr></thead>
+              <tbody>
+                <tr><td style="padding:8px 14px; border-bottom:1px solid var(--paper-2); color:var(--amber); font-weight:700;">1</td><td style="padding:8px 14px; border-bottom:1px solid var(--paper-2);">골격 36폴더</td><td style="padding:8px 14px; border-bottom:1px solid var(--paper-2); color:var(--blueprint);">0-parking / 1-process / 2-routine</td></tr>
+                <tr><td style="padding:8px 14px; border-bottom:1px solid var(--paper-2); color:var(--amber); font-weight:700;">2</td><td style="padding:8px 14px; border-bottom:1px solid var(--paper-2);">지침 4종</td><td style="padding:8px 14px; border-bottom:1px solid var(--paper-2); color:var(--blueprint);">README.md · AGENTS.md · CLAUDE.md · GEMINI.md</td></tr>
+                <tr><td style="padding:8px 14px; border-bottom:1px solid var(--paper-2); color:var(--amber); font-weight:700;">3</td><td style="padding:8px 14px; border-bottom:1px solid var(--paper-2);">인덱스 자동화</td><td style="padding:8px 14px; border-bottom:1px solid var(--paper-2); color:var(--blueprint);">update-structure.sh · STRUCTURE.md</td></tr>
+                <tr><td style="padding:8px 14px; border-bottom:1px solid var(--paper-2); color:var(--amber); font-weight:700;">4</td><td style="padding:8px 14px; border-bottom:1px solid var(--paper-2);">훅</td><td style="padding:8px 14px; border-bottom:1px solid var(--paper-2); color:var(--blueprint);">.claude/settings.json · .claude/hooks/on-bash.sh</td></tr>
+                <tr><td style="padding:8px 14px; color:var(--amber); font-weight:700;">5</td><td style="padding:8px 14px;">스킬</td><td style="padding:8px 14px; color:var(--blueprint);">.agents/skills/business-folder-creator/SKILL.md</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="note tip" style="margin-top:14px;"><b>완성</b> — 이 시스템을 갖추면 데이터만 비어 있을 뿐, LLM이 스스로 규칙을 따르고 폴더를 관리하는 <b>LLM 중심 운영 환경</b>이 완성됩니다.</div>
+      </div>
+    </div>
+  </section>
+
+  
+  <!-- ══════════════ 대단원 2 ══════════════ -->
+  <div id="part2" style="margin:52px 0 0; padding:18px 22px 16px; background:var(--amber); border-radius:16px 16px 0 0;">
+    <div style="font-family:var(--mono); font-size:11px; font-weight:700; color:rgba(255,255,255,.6); letter-spacing:.08em; margin-bottom:4px;">PART 2</div>
+    <div style="font-size:22px; font-weight:900; color:#fff; letter-spacing:-.02em;">프로젝트 생성 및 Git 관리</div>
+    <div style="font-size:13.5px; color:rgba(255,255,255,.75); margin-top:4px;">Git 설치 → 저장소 생성 → 실무 커밋 → 마감 → NAS 백업</div>
+  </div>
+
+<!-- ========== 단계 0 ========== -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="설치">2</div>
+      <div class="stage__t">
+        <div class="stage__kicker">Git Setup · 최초 1회</div>
+        <h2 class="stage__name">Git 엔진 설치 & 한글 설정</h2>
+      </div>
+    </div>
+    <p class="stage__desc">AI 에디터는 Git을 제어하는 <b>포장지</b>일 뿐입니다. 알맹이가 되는 Git 프로그램을 PC에 먼저 설치해야 작동합니다.</p>
+
+    <!-- T0-1 -->
+    <div class="task" data-task="t0-1">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 0-1</div>
+          <p class="task__title">Git 순정 프로그램 설치</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <!-- Windows -->
+        <div class="win-only">
+          <ol>
+            <li>공식 홈페이지 <code class="path">https://git-scm.com</code> 접속</li>
+            <li>우측 하단 <b>Download for Windows</b> 클릭 → 최신 <code class="kbd">.exe</code> 다운로드·실행</li>
+            <li>설정값 변경 없이 <b>[Next]만 계속 눌러</b> 설치 완료</li>
+          </ol>
+        </div>
+        <!-- macOS -->
+        <div class="mac-only">
+          <p style="margin:0 0 8px;">macOS는 아래 두 가지 중 하나를 선택하세요.</p>
+          <ol>
+            <li>
+              <b>방법 A · Homebrew (추천)</b> — 터미널(<code class="kbd">⌘ + Space</code> → "터미널" 검색)을 열고 아래 명령어를 순서대로 실행하세요.
+              <div class="cmdblock" data-cmd="brew install git" style="margin-top:8px;">
+                <div class="cmdblock__bar">
+                  <span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;터미널 · Homebrew로 Git 설치</span>
+                  <button class="cmdblock__copy">복사</button>
+                </div>
+                <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">brew install</span> <span class="val">git</span></pre>
+              </div>
+              <div class="note tip" style="margin-top:8px;"><b>Homebrew가 없다면</b> 먼저 <code class="path">https://brew.sh</code> 에서 설치한 뒤 위 명령어를 실행하세요.</div>
+            </li>
+            <li style="margin-top:12px;">
+              <b>방법 B · 공식 인스톨러</b> — <code class="path">https://git-scm.com</code> 접속 → <b>Download for macOS</b> 클릭 → <code class="kbd">.pkg</code> 파일 실행 후 <b>[계속]만 눌러</b> 설치 완료
+            </li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <!-- T0-2 -->
+    <div class="task" data-task="t0-2">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 0-2</div>
+          <p class="task__title">에디터 ↔ Git 연결 확인</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <!-- Windows -->
+        <div class="win-only">
+          <ol>
+            <li>LLM 에디터 실행 → <code class="kbd">Ctrl + `</code> (또는 <code class="kbd">Terminal &gt; New Terminal</code>)로 하단 터미널 열기</li>
+            <li>검은 창에 <code class="kbd">git --version</code> 입력 후 엔터</li>
+            <li><code class="path">git version 2.x.x</code> 처럼 버전이 출력되면 준비 완료</li>
+          </ol>
+        </div>
+        <!-- macOS -->
+        <div class="mac-only">
+          <ol>
+            <li>LLM 에디터 실행 → <code class="kbd">Ctrl + `</code> (또는 <code class="kbd">Terminal &gt; New Terminal</code>)로 하단 터미널 열기</li>
+            <li>검은 창에 <code class="kbd">git --version</code> 입력 후 엔터</li>
+            <li><code class="path">git version 2.x.x</code> 처럼 버전이 출력되면 준비 완료</li>
+          </ol>
+          <div class="note warn"><b>명령어 도구(Xcode CLT) 팝업이 뜨면</b> — <b>[설치]</b>를 눌러 Apple 공식 개발 도구를 먼저 설치하세요. Git이 내장되어 있어 위 방법 B가 필요 없을 수 있습니다.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- T0-3 -->
+    <div class="task" data-task="t0-3">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 0-3 · 필수</div>
+          <p class="task__title">한글 파일명 깨짐 방지 설정</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="os-hint">
+          <span>📍 현재 OS :</span>
+          <span class="win-only"><b>🪟 Windows</b> — 아래 명령어 <b>2개</b>를 실행하세요.</span>
+          <span class="mac-only"><b>🍎 macOS</b> — Mac 전용 설정이 추가되어 <b>3개</b>를 실행하세요.</span>
+          <span style="color:rgba(255,255,255,.3);">|</span>
+          <span>다른 OS라면 →</span>
+          <button class="os-hint__btn win" data-os="win">🪟 Windows로 전환</button>
+          <button class="os-hint__btn mac" data-os="mac">🍎 Mac으로 전환</button>
+        </div>
+
+        <p>우리 회사는 <code class="kbd">[도면] 로비계단.dwg</code> 처럼 <b>한글 파일명</b>을 사용합니다.
+        Git 설치 직후 터미널 창에 아래 명령어를 <b>각각 입력하고 엔터</b>를 누르십시오.</p>
+
+        <!-- Windows -->
+        <div class="win-only">
+          <div class="note warn"><b>Windows 필수 설정 2개</b> — 하나라도 빠지면 한글 파일명이 터미널에서 깨집니다.</div>
+
+          <p style="margin:16px 0 4px; font-size:13.5px;"><b>① 한글 깨짐 방지</b> <span style="color:var(--ink-soft); font-size:12.5px;">— 터미널에서 한글 경로가 <code class="kbd">\354\225\210...</code> 처럼 깨지는 현상 방지</span></p>
+          <div class="cmdblock" data-cmd="git config --global core.quotepath false">
+            <div class="cmdblock__bar">
+              <span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;터미널 · 명령어 1 / 2 <span class="os-badge win">WIN</span></span>
+              <button class="cmdblock__copy">복사</button>
+            </div>
+            <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">git config</span> <span class="flag">--global</span> <span class="val">core.quotepath false</span></pre>
+          </div>
+
+          <p style="margin:14px 0 4px; font-size:13.5px;"><b>② Windows·Mac 파일명 호환 깨짐 방지</b> <span style="color:var(--ink-soft); font-size:12.5px;">— Windows에서 Mac 한글 파일명이 손상되는 현상 방지</span></p>
+          <div class="cmdblock" data-cmd="git config --global core.precomposeunicode true">
+            <div class="cmdblock__bar">
+              <span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;터미널 · 명령어 2 / 2 <span class="os-badge win">WIN</span></span>
+              <button class="cmdblock__copy">복사</button>
+            </div>
+            <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">git config</span> <span class="flag">--global</span> <span class="val">core.precomposeunicode true</span></pre>
+          </div>
+        </div>
+
+        <!-- macOS -->
+        <div class="mac-only">
+          <div class="note warn"><b>Mac 필수 설정 3개</b> — Mac은 NFC/NFD 유니코드 방식 차이로 Windows보다 설정이 하나 더 필요합니다. 모두 실행하세요.</div>
+
+          <p style="margin:16px 0 4px; font-size:13.5px;"><b>① 한글 깨짐 방지</b> <span style="color:var(--ink-soft); font-size:12.5px;">— 터미널에서 한글 경로가 깨지는 현상 방지</span></p>
+          <div class="cmdblock" data-cmd="git config --global core.quotepath false">
+            <div class="cmdblock__bar">
+              <span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;터미널 · 명령어 1 / 3 <span class="os-badge mac">MAC</span></span>
+              <button class="cmdblock__copy">복사</button>
+            </div>
+            <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">git config</span> <span class="flag">--global</span> <span class="val">core.quotepath false</span></pre>
+          </div>
+
+          <p style="margin:14px 0 4px; font-size:13.5px;"><b>② Mac↔Windows 파일명 호환 깨짐 방지</b> <span style="color:var(--ink-soft); font-size:12.5px;">— Mac의 NFD 방식 한글이 Windows에서 깨지는 현상 방지 (Mac 전용 핵심 설정)</span></p>
+          <div class="cmdblock" data-cmd="git config --global core.precomposeunicode true">
+            <div class="cmdblock__bar">
+              <span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;터미널 · 명령어 2 / 3 <span class="os-badge mac">MAC</span></span>
+              <button class="cmdblock__copy">복사</button>
+            </div>
+            <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">git config</span> <span class="flag">--global</span> <span class="val">core.precomposeunicode true</span></pre>
+          </div>
+
+          <p style="margin:14px 0 4px; font-size:13.5px;"><b>③ 대소문자 구분 강제 적용</b> <span style="color:var(--ink-soft); font-size:12.5px;">— macOS 기본값(대소문자 무시)이 서버·Windows와 충돌하는 현상 방지</span></p>
+          <div class="cmdblock" data-cmd="git config --global core.ignorecase false">
+            <div class="cmdblock__bar">
+              <span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;터미널 · 명령어 3 / 3 <span class="os-badge mac">MAC</span></span>
+              <button class="cmdblock__copy">복사</button>
+            </div>
+            <pre class="cmdblock__code"><span class="prompt">$ </span><span class="cmd">git config</span> <span class="flag">--global</span> <span class="val">core.ignorecase false</span></pre>
+          </div>
+        </div>
+
+        <div class="note tip"><b>--global 의미</b> — 이 PC의 모든 Git 프로젝트에 한 번만 설정하면 영구 적용됩니다. 다시 입력할 필요 없습니다.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 단계 1 ========== -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="최초 1회">3</div>
+      <div class="stage__t">
+        <div class="stage__kicker">Project Init · 최초 1회</div>
+        <h2 class="stage__name">프로젝트 저장소 생성</h2>
+      </div>
+    </div>
+    <p class="stage__desc">무작위로 깃을 설정하면 PC가 멈추거나 통합 검색이 불가능해집니다. 디스크 상황에 맞춰 <b>유형 A · B 중 하나</b>를 골라 세팅하세요.</p>
+
+    <!-- 분기 선택 -->
+    <div class="choose">
+      <button class="opt active" data-path="A" aria-pressed="true">
+        <div class="opt__tag">표준 · 추천</div>
+        <div class="opt__name">유형 A · 기본형</div>
+        <div class="opt__d">작업 파일과 기록 창고(.git)가 같은 폴더에. 가장 직관적입니다.</div>
+      </button>
+      <button class="opt adv" data-path="B" aria-pressed="false">
+        <div class="opt__tag">고급</div>
+        <div class="opt__name">유형 B · 분리형<span class="lv">ADV</span></div>
+        <div class="opt__d">작업은 빠른 C드라이브(SSD), 무거운 기록은 D드라이브로 분리.</div>
+      </button>
+    </div>
+
+    <!-- 유형 A 경로 -->
+    <div class="pathbox show" data-path="A">
+      <div class="task" data-task="t1-prep">
+        <div class="task__top">
+          <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="task__body">
+            <div class="task__label">STEP 3-1 · 유형 A</div>
+            <p class="task__title">폴더 만들고 에디터로 열기</p>
+          </div>
+        </div>
+        <div class="task__detail">
+          <!-- Windows -->
+          <div class="win-only">
+            <ol>
+              <li>D드라이브에 프로젝트 폴더 생성 (예: <code class="path">D:\Total_Projects\A아파트_설계공사</code>)</li>
+              <li>그 안에 캐드(<code class="kbd">.dwg</code>)·엑셀(<code class="kbd">.xlsx</code>)·워드(<code class="kbd">.docx</code>) 실무 파일을 넣기</li>
+              <li>에디터에서 <code class="kbd">File &gt; Open Folder...</code>로 해당 폴더 열기</li>
+            </ol>
+          </div>
+          <!-- macOS -->
+          <div class="mac-only">
+            <ol>
+              <li>Finder에서 프로젝트 폴더 생성 (예: <code class="path">~/Documents/Total_Projects/A아파트_설계공사</code>)</li>
+              <li>그 안에 캐드(<code class="kbd">.dwg</code>)·엑셀(<code class="kbd">.xlsx</code>)·워드(<code class="kbd">.docx</code>) 실무 파일을 넣기</li>
+              <li>에디터에서 <code class="kbd">File &gt; Open Folder...</code>로 해당 폴더 열기</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="task" data-task="t1-init">
+        <div class="task__top">
+          <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="task__body">
+            <div class="task__label">STEP 3-2 · 유형 A</div>
+            <p class="task__title">로컬 저장소 초기화(init)</p>
+          </div>
+        </div>
+        <div class="task__detail">
+          <div class="slip">
+            <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 AI 직원 지시</span><button class="slip__copy">복사</button></div>
+            <p class="slip__text">이 폴더를 로컬 Git 저장소로 초기화(init)해 줘. 인터넷 연결 없이 내 컴퓨터에서만 로컬로 쓸 거야.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 유형 B 경로 -->
+    <div class="pathbox" data-path="B">
+      <div class="task" data-task="t1-prep">
+        <div class="task__top">
+          <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="task__body">
+            <div class="task__label">STEP 3-1 · 유형 B</div>
+            <p class="task__title">작업 폴더 / 기록 창고 분리 준비</p>
+          </div>
+        </div>
+        <div class="task__detail">
+          <!-- Windows -->
+          <div class="win-only">
+            <ol>
+              <li>C드라이브(SSD)에 실제 작업 폴더 생성 (예: <code class="path">C:\Working\A아파트_설계공사</code>)</li>
+              <li>D드라이브(HDD)·외장하드에 기록 보관용 빈 폴더 생성 (예: <code class="path">D:\Git_Archive\A아파트_설계공사</code>)</li>
+              <li>에디터로 <b>C드라이브 작업 폴더</b>를 <code class="kbd">Open Folder</code></li>
+            </ol>
+          </div>
+          <!-- macOS -->
+          <div class="mac-only">
+            <ol>
+              <li>빠른 드라이브에 실제 작업 폴더 생성 (예: <code class="path">~/Documents/Working/A아파트_설계공사</code>)</li>
+              <li>외장하드 또는 별도 볼륨에 기록 보관용 빈 폴더 생성 (예: <code class="path">/Volumes/Archive/Git_Archive/A아파트_설계공사</code>)</li>
+              <li>에디터로 <b>작업 폴더(~/Documents)</b>를 <code class="kbd">Open Folder</code></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div class="task" data-task="t1-init">
+        <div class="task__top">
+          <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+            <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="task__body">
+            <div class="task__label">STEP 3-2 · 유형 B</div>
+            <p class="task__title">기록 창고를 외부 경로로 분리 개설</p>
+          </div>
+        </div>
+        <div class="task__detail">
+          <div class="slip win-only">
+            <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 AI 직원 지시 <span class="os-badge win">WIN</span></span><button class="slip__copy">복사</button></div>
+            <p class="slip__text">현재 내 작업 폴더의 Git 기록 창고(.git)를 내가 지정한 외부 경로인 D:\Git_Archive\A아파트_설계공사 폴더에 별도로 분리해서 개설해 줘.</p>
+          </div>
+          <div class="slip mac-only">
+            <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 AI 직원 지시 <span class="os-badge mac">MAC</span></span><button class="slip__copy">복사</button></div>
+            <p class="slip__text">현재 내 작업 폴더의 Git 기록 창고(.git)를 내가 지정한 외부 경로인 /Volumes/Archive/Git_Archive/A아파트_설계공사 폴더에 별도로 분리해서 개설해 줘.</p>
+          </div>
+          <div class="note tip"><b>결과</b> — 무거운 과거 데이터는 D드라이브에 쌓이고, C드라이브엔 연결용 이정표 파일(1KB)만 남아 SSD 용량이 보존됩니다.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 단계 2 ========== -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="상시">4</div>
+      <div class="stage__t">
+        <div class="stage__kicker">Daily Work · 상시 작업</div>
+        <h2 class="stage__name">실무 활용 & 이력 관리</h2>
+      </div>
+    </div>
+    <p class="stage__desc">팀원 모두가 동일한 규칙으로 기록해야 AI 에이전트가 데이터베이스처럼 정확히 검색합니다.</p>
+
+    <!-- T2-1 규칙 -->
+    <div class="task" data-task="t2-rule">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 4-1</div>
+          <p class="task__title">사내 표준 커밋 메시지 규칙 숙지</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <p>📝 표준 템플릿: <code class="kbd">[태그] 위치/대상 - 수정된 핵심 내용 (이유)</code></p>
+        <div class="tags">
+          <div class="tagrow"><span class="tagchip t1">[도면]</span> 캐드 · 3D 맥스 등 디자인 파일 수정 시</div>
+          <div class="tagrow"><span class="tagchip t2">[문서]</span> 엑셀 · 워드 · 견적서 · 시방서 등 문서 수정 시</div>
+          <div class="tagrow"><span class="tagchip t3">[자료]</span> 현장 사진 · 실측 데이터 등 참고자료 추가 시</div>
+        </div>
+        <div class="note warn"><b>글자 수 규칙</b> — 제목(첫 줄)은 <b>한글 25자(영문 50자) 내외</b>. 한글 35자를 넘으면 이력 창에서 뒷부분이 <code class="kbd">...</code>로 잘립니다.</div>
+
+        <!-- 예시 테이블 -->
+        <div class="eg-wrap">
+          <div class="eg-head">
+            <span class="eg-title">✏️ 커밋 메시지 예시 — 이렇게 쓰세요</span>
+            <span class="eg-legend"><span class="eg-ok-dot"></span>좋은 예&nbsp;&nbsp;<span class="eg-bad-dot"></span>나쁜 예</span>
+          </div>
+
+          <!-- [도면] -->
+          <div class="eg-section">
+            <span class="tagchip t1" style="font-size:11px;">[도면]</span>
+          </div>
+          <div class="eg-row ok">
+            <span class="eg-mark ok">✓</span>
+            <code class="eg-msg">[도면] A동 1층 - 로비 계단 3단 확장 (건축주 요청)</code>
+            <span class="eg-cnt">21자</span>
+          </div>
+          <div class="eg-row ok">
+            <span class="eg-mark ok">✓</span>
+            <code class="eg-msg">[도면] 지하주차장 - 기둥 위치 내측 50cm 이동</code>
+            <span class="eg-cnt">22자</span>
+          </div>
+          <div class="eg-row ok">
+            <span class="eg-mark ok">✓</span>
+            <code class="eg-msg">[도면] 301호 - 드레스룸 벽 철거 후 오픈형 변경</code>
+            <span class="eg-cnt">23자</span>
+          </div>
+          <div class="eg-row bad">
+            <span class="eg-mark bad">✗</span>
+            <code class="eg-msg">도면 수정했음</code>
+            <span class="eg-reason">태그 없음 · 위치 불명 · 내용 불명</span>
+          </div>
+          <div class="eg-row bad">
+            <span class="eg-mark bad">✗</span>
+            <code class="eg-msg">[도면] A동 1층 로비 계단을 건축주 요청에 의해 기존 5단에서 8단으로 3단 확장 수정</code>
+            <span class="eg-reason">40자 초과 → 이력 창에서 잘림</span>
+          </div>
+
+          <!-- [문서] -->
+          <div class="eg-section">
+            <span class="tagchip t2" style="font-size:11px;">[문서]</span>
+          </div>
+          <div class="eg-row ok">
+            <span class="eg-mark ok">✓</span>
+            <code class="eg-msg">[문서] 자재견적서 - 철근 단가 인상분 반영 (6월)</code>
+            <span class="eg-cnt">24자</span>
+          </div>
+          <div class="eg-row ok">
+            <span class="eg-mark ok">✓</span>
+            <code class="eg-msg">[문서] 공정표 - 2공구 착공일 2주 연기 반영</code>
+            <span class="eg-cnt">20자</span>
+          </div>
+          <div class="eg-row ok">
+            <span class="eg-mark ok">✓</span>
+            <code class="eg-msg">[문서] 시방서 3장 - 방수재 사양 KS F 4934로 교체</code>
+            <span class="eg-cnt">25자</span>
+          </div>
+          <div class="eg-row bad">
+            <span class="eg-mark bad">✗</span>
+            <code class="eg-msg">견적서 업데이트</code>
+            <span class="eg-reason">태그 없음 · 무엇이 어떻게 바뀌었는지 불명</span>
+          </div>
+
+          <!-- [자료] -->
+          <div class="eg-section">
+            <span class="tagchip t3" style="font-size:11px;">[자료]</span>
+          </div>
+          <div class="eg-row ok">
+            <span class="eg-mark ok">✓</span>
+            <code class="eg-msg">[자료] 현장사진 - A동 골조 완료 6/13 촬영본</code>
+            <span class="eg-cnt">23자</span>
+          </div>
+          <div class="eg-row ok">
+            <span class="eg-mark ok">✓</span>
+            <code class="eg-msg">[자료] 실측데이터 - 301호 창호 실측 치수표 추가</code>
+            <span class="eg-cnt">24자</span>
+          </div>
+          <div class="eg-row bad">
+            <span class="eg-mark bad">✗</span>
+            <code class="eg-msg">사진 추가</code>
+            <span class="eg-reason">언제·어디·무슨 사진인지 전혀 알 수 없음</span>
+          </div>
+        </div>
+
+        <div class="note tip" style="margin-top:14px;"><b>LLM 에이전트에게 맡기는 방법</b> — 규칙이 어렵다면 STEP 4-2의 프롬프트처럼 <b>"한글 25자 내외로 규격에 맞게 다듬어서 커밋해 줘"</b>라고 내용만 던지면 에이전트가 형식을 잡아줍니다.</div>
+      </div>
+    </div>
+
+    <!-- T2-2 커밋 -->
+    <div class="task" data-task="t2-commit">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 4-2</div>
+          <p class="task__title">파일 수정 후 기록하기 (Commit)</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <p>캐드·엑셀에서 작업 후 <code class="kbd">Ctrl + S</code> 저장 직후, 에이전트에게 기록을 시킵니다.</p>
+        <div class="slip">
+          <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 AI 직원 지시</span><button class="slip__copy">복사</button></div>
+          <p class="slip__text">방금 저장한 캐드 도면 기록(커밋)해 줘. 규칙([태그] 위치 - 내용)에 맞게 제목이 잘리지 않도록 딱 한글 25자 내외로 다듬어서 커밋해 줘. 내용은 A동 로비 계단 3단 늘린 거야.</p>
+        </div>
+        <div class="reply">예상 응답 — 사내 규칙 및 글자 수 제한에 맞추어 <b>'[도면] A동 1층 - 메인 로비 계단 3단 확장 수정'</b>으로 커밋을 완료했습니다.</div>
+        <div class="note tip"><b>자동 박제</b> — 모든 기록은 실행 순간의 [날짜·초 단위 시간]이 자동으로 영구 박제됩니다. 시간을 따로 적을 필요가 없습니다.</div>
+      </div>
+    </div>
+
+    <!-- T2-3 체크아웃 -->
+    <div class="task" data-task="t2-checkout">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 4-3</div>
+          <p class="task__title">과거 버전으로 타임머신 타기 (Checkout)</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="note warn"><b>필수 선행</b> — 열려 있는 캐드·엑셀을 <b>반드시 저장 후 완전히 종료</b>하세요. 켜둔 채 호출하면 파일 잠금 때문에 에러가 납니다.</div>
+        <div class="slip">
+          <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 AI 직원 지시</span><button class="slip__copy">복사</button></div>
+          <p class="slip__text">상위 로그를 뒤져서, 지난주 금요일 오후 상태(또는 2번 버전)의 계단 수정 전 도면 파일로 되돌려줘.</p>
+        </div>
+        <div class="note tip"><b>작동 원리</b> — 폴더 내 파일은 항상 단 1개. 내용물이 순간이동하듯 스위칭됩니다. 두 버전을 눈으로 비교하려면 복사본을 따로 요청하세요.</div>
+        <div class="slip">
+          <div class="slip__bar"><span class="slip__from">👤 비교용 복사본 요청</span><button class="slip__copy">복사</button></div>
+          <p class="slip__text">현재 작업 파일은 유지하고, 깃 창고에 있는 2번 버전 도면 파일만 쏙 꺼내서 바탕화면에 [비교용]_2번도면.dwg 라는 임시 파일로 복사본 만들어줘.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- T2-4 지능형 검색 -->
+    <div class="task" data-task="t2-search">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 4-4 · 중요</div>
+          <p class="task__title">LLM 지능형 파일 검색 & 바로가기</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <p>파일명이나 정확한 경로를 외울 필요가 없습니다. 에이전트에게 <b>의미(맥락)</b> · <b>날짜대</b> · <b>핵심 키워드</b>를 던져 작업 시점과 파일을 찾고, 결과로 제공되는 <b>경로 링크를 클릭해 해당 폴더·파일로 즉시 진입</b>하세요.</p>
+        <div class="note tip"><b>작동 원리</b> — 에이전트가 누적된 깃 로그(메시지·시간)를 파싱해 질문 의도에 맞는 파일을 인덱싱하고, 로컬 디렉터리 경로를 링크 형태로 실시간 생성해 줍니다.</div>
+
+        <p style="margin:18px 0 4px; font-weight:700; color:var(--ink);">💬 실무 검색 프롬프트 패턴 — 바로 따라 하기</p>
+
+        <!-- 패턴 1 -->
+        <div class="task__label" style="margin-top:12px;">패턴 1 · 의미/맥락 기반</div>
+        <div class="slip">
+          <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 AI 직원 지시</span><button class="slip__copy">복사</button></div>
+          <p class="slip__text">에이전트, 예전에 건축주가 계단 좀 늘려달라고 해서 고쳤던 캐드 파일 기록 좀 찾아줘.</p>
+        </div>
+        <div class="reply">예상 응답 — <b>"[도면] A동 1층 - 메인 로비 계단 3단 확장 수정 (2026-06-12 14:20)"</b> 커밋을 찾았습니다. 해당 파일이 위치한 폴더 경로입니다.
+          <br><span class="golink">📁 폴더 열기 · D:\Total_Projects\2026_A아파트_설계공사\ <span class="arr">↗</span></span>
+        </div>
+
+        <!-- 패턴 2 -->
+        <div class="task__label" style="margin-top:14px;">패턴 2 · 키워드 + 날짜대 결합</div>
+        <div class="slip">
+          <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 AI 직원 지시</span><button class="slip__copy">복사</button></div>
+          <p class="slip__text">5월 초쯤에 작업했던 파일 중에서 '견적서'나 '단가'라는 말이 들어간 엑셀 기록 다 찾아서 위치를 링크로 제공해줘.</p>
+        </div>
+        <div class="reply">예상 응답 — 5월 3일에 커밋된 문서 1건을 찾았습니다. 기록명: <b>[문서] 자재 구매 견적서 단가 업데이트</b>
+          <br><span class="golink">📄 공정표.xlsx 열기 · D:\Total_Projects\2026_A아파트_설계공사\공정표.xlsx <span class="arr">↗</span></span>
+        </div>
+
+        <!-- 패턴 3 -->
+        <div class="task__label" style="margin-top:14px;">패턴 3 · 분리형(유형 B) 저장소 통합 검색</div>
+        <div class="slip">
+          <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 AI 직원 지시</span><button class="slip__copy">복사</button></div>
+          <p class="slip__text">[유형 B] 분리형 저장소 쓰고 있는데, D드라이브 깃 창고 이력 다 뒤져서 최근 3일간 수정된 모든 파일 이름과 절대 경로 링크 리스트업해줘.</p>
+        </div>
+
+        <div class="note warn"><b>직원 필독</b> — ① 에이전트가 주는 <b>[폴더 열기]·[파일 열기]</b> 링크를 클릭하면 윈도우 탐색기를 켜서 타고 들어갈 필요 없이 작업 공간으로 즉시 전환됩니다. ② 이 지능형 검색이 정확히 작동하려면, <b>STEP 4-1 표준 커밋 메시지 규칙</b>을 전 직원이 철저히 지켜 기록을 남겨야 AI가 맥락을 짚어냅니다.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 🚨 전 직원 수칙 ========== -->
+  <div class="rules" role="region" aria-label="전 직원 필수 수칙">
+    <div class="rules__head">
+      <span class="rules__icon">🚨</span>
+      <div>
+        <p class="rules__htitle">전 직원이 반드시 지켜야 할 사내 수칙</p>
+        <p class="rules__sub">MANDATORY · 프로젝트 관리법 전 직원 공통 준수 사항</p>
+      </div>
+    </div>
+    <div class="rules__body">
+
+      <!-- 수칙 1 -->
+      <div class="rule">
+        <div class="rule__num">1</div>
+        <div class="rule__content">
+          <p class="rule__t">5초의 규칙</p>
+          <p class="rule__d">
+            메시지를 대충 적는 것은 <b>미래의 나, 그리고 동료의 시간을 뺏는 행위</b>입니다.
+            LLM 에이전트가 완벽하게 검색해 주는 똑똑한 비서가 될 수 있도록,
+            커밋할 때 딱 <b>5초만 투자</b>해서 <b>STEP 2-1 사내 규격 형식</b>을 지켜주시기 바랍니다.
+          </p>
+        </div>
+      </div>
+
+      <!-- 수칙 2 -->
+      <div class="rule">
+        <div class="rule__num">2</div>
+        <div class="rule__content">
+          <p class="rule__t">수정되지 않는 대용량 파일 분리</p>
+          <p class="rule__d">
+            단순 보관용 대용량 파일(고화질 현장 사진 모음·동영상 등)은 깃 저장소 용량을 과도하게 차지합니다.
+            <b>깃 감시 폴더 외부로 분리</b>하거나, 아래 프롬프트로 AI 에이전트에게 예외 등록을 요청하십시오.
+          </p>
+          <button class="rule__agent" data-prompt=".gitignore 파일에 현장 사진 폴더(photos/)와 동영상 파일(*.mp4, *.mov)을 추가해서 깃 추적에서 제외해 줘.">
+            📋 .gitignore 등록 프롬프트 복사
+          </button>
+        </div>
+      </div>
+
+      <!-- 수칙 3 -->
+      <div class="rule">
+        <div class="rule__num">3</div>
+        <div class="rule__content">
+          <p class="rule__t">매주 금요일 정기 백업</p>
+          <p class="rule__d">
+            프로젝트 진행 중에도 본체 고장 등 불의의 사고를 방지하기 위해,
+            <b>매주 금요일 퇴근 전</b>에 작업 중인 폴더 전체를 복사하여
+            <b>회사 NAS 드라이브에 임시 백업본</b>을 저장해 두십시오.
+            (<span class="win-only inline"><code class="kbd">Ctrl + C</code> → NAS 경로 이동 → <code class="kbd">Ctrl + V</code></span><span class="mac-only inline"><code class="kbd">⌘ + C</code> → NAS 경로 이동 → <code class="kbd">⌘ + V</code></span>)
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========== 단계 3 ========== -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="종료">5</div>
+      <div class="stage__t">
+        <div class="stage__kicker">Closing · 프로젝트 종료</div>
+        <h2 class="stage__name">프로젝트 마감 & 깃 초기화</h2>
+      </div>
+    </div>
+    <p class="stage__desc">더 이상 수정이 없을 때 누적된 시행착오 기록을 청소하고 용량을 확보합니다. <b>반드시 순서대로</b> 진행하세요.</p>
+
+    <div class="task" data-task="t3-close">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 5-1</div>
+          <p class="task__title">모든 프로그램 종료</p>
+        </div>
+      </div>
+      <div class="task__detail">캐드·엑셀·워드 등 모든 실무 프로그램을 <b>최종 저장(<span class="win-only inline"><code class="kbd">Ctrl + S</code></span><span class="mac-only inline"><code class="kbd">⌘ + S</code></span>) 후 완전히 닫기.</b></div>
+    </div>
+
+    <div class="task" data-task="t3-reinit">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 5-2</div>
+          <p class="task__title">과거 히스토리 폭파 → Initial Commit 재초기화</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="slip">
+          <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 AI 직원 지시</span><button class="slip__copy">복사</button></div>
+          <p class="slip__text">이제 이 프로젝트 최종 완성됐어. 그동안 누적된 과거의 자잘한 수정 이력은 전부 삭제하고, 현재 이 최종 파일 상태를 첫 번째 커밋('Initial Commit')으로 만들어서 깃 저장소를 가볍게 최적화 초기화해 줘.</p>
+        </div>
+        <div class="reply">예상 응답 — 과거 이력을 모두 삭제하고, 현재 최종 파일 상태를 기준점으로 삼아 Git 저장소를 깨끗하게 재초기화 완료했습니다. <b>용량이 대폭 최적화되었습니다.</b></div>
+      </div>
+    </div>
+
+    <div class="task" data-task="t3-verify">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 5-3</div>
+          <p class="task__title">Clean 상태 확인 후 닫기</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <ul>
+          <li>왼쪽 <b>소스 제어(Source Control)</b> 탭에서 <code class="kbd">Changes</code>에 잔여 파일 없이 <b>Clean</b> 상태인지 눈으로 확인</li>
+          <li><code class="kbd">File &gt; Close Folder</code>로 프로젝트를 안전하게 닫고 에디터 완전 종료</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 단계 4 ========== -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="백업">6</div>
+      <div class="stage__t">
+        <div class="stage__kicker">Archive · 물리 백업</div>
+        <h2 class="stage__name">NAS 이관 & 물리 백업</h2>
+      </div>
+    </div>
+    <p class="stage__desc">가벼워진 최종 폴더를 회사 지식 자산으로 등록하고, 본체 고장에 대비해 이중 백업합니다.</p>
+
+    <div class="task" data-task="t4-wiki">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 6-1</div>
+          <p class="task__title">사내 위키 등록 서식 작성</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        사내 위키 시스템에 페이지를 개설하고 아래 서식으로 기록합니다.
+<pre class="wiki"><span class="b">■ 프로젝트명:</span> 2026_A아파트_설계공사
+<span class="b">■ 최종 마감일:</span> 2026년 6월 14일
+<span class="b">■ 프로젝트 담당자:</span> 홍길동 대리
+<span class="b">■ 로컬 저장 위치:</span> 사내 NAS 드라이브 (W:\Company_Archive\2026_A아파트)
+<span class="b">■ 프로젝트 요약 및 특이사항:</span>
+  - 건축주 요청으로 A동 1층 메인 로비 계단 3단 확장 반영됨.
+  - 2026년 상반기 철근 자재 인상분이 반영된 최종 견적서 포함.</pre>
+      </div>
+    </div>
+
+    <div class="task" data-task="t4-backup">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 6-2</div>
+          <p class="task__title">최종 파일 물리 백업 (NAS 이관)</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="note warn"><b>왜 필요한가</b> — 로컬 깃은 본체가 고장 나면 과거 기록까지 통째로 날아갑니다. 폴더 전체를 공용 서버로 이관하세요.</div>
+        <ol>
+          <li>마감된 프로젝트 폴더 전체 선택 → <span class="win-only inline"><code class="kbd">Ctrl + C</code></span><span class="mac-only inline"><code class="kbd">⌘ + C</code></span></li>
+          <li>보안 네트워크 드라이브(NAS) 또는 백업 외장하드의 지정 경로로 이동</li>
+          <li><span class="win-only inline"><code class="kbd">Ctrl + V</code></span><span class="mac-only inline"><code class="kbd">⌘ + V</code></span> 붙여넣기로 이중 백업 완료</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  
+  <!-- ══════════════ 대단원 3 ══════════════ -->
+  <div id="part3" style="margin:52px 0 0; padding:18px 22px 16px; background:#7B52AB; border-radius:16px 16px 0 0;">
+    <div style="font-family:var(--mono); font-size:11px; font-weight:700; color:rgba(255,255,255,.6); letter-spacing:.08em; margin-bottom:4px;">PART 3</div>
+    <div style="font-size:22px; font-weight:900; color:#fff; letter-spacing:-.02em;">LLM 위키 전환</div>
+    <div style="font-size:13.5px; color:rgba(255,255,255,.75); margin-top:4px;">완성 프로젝트 인사이트를 재활용 가능한 지식체계로 전환</div>
+  </div>
+
+<!-- ========== 단계 4.5 — 지식 위키 볼트 ========== -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="위키">4<span style="font-size:14px;">.5</span></div>
+      <div class="stage__t">
+        <div class="stage__kicker">Knowledge Vault · 지식 자산화</div>
+        <h2 class="stage__name">완성 프로젝트 → LLM 위키 전환</h2>
+      </div>
+    </div>
+    <p class="stage__desc">
+      6단계(NAS 백업)까지 마친 완성 프로젝트의 파일들을 <b>LLM이 직접 읽고 분석해 재활용 가능한 지식 노트로 자동 추출·컴파일</b>합니다.
+      핵심 통찰: <b>"지식의 최종 소비자는 미래의 LLM 세션이다"</b> — 노트는 사람의 메모가 아니라, 다음 프로젝트에서 AI가 즉시 꺼내 쓸 수 있는 컴파일된 지식입니다.
+    </p>
+
+    <!-- ── WHY 카드 ── -->
+    <div class="task" data-task="t45-why">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 7-1 · 개념</div>
+          <p class="task__title">왜 지식 볼트가 필요한가 — 반복하지 않는 법</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="eg-wrap">
+          <div class="eg-head"><span class="eg-title">🔄 기존 방식 vs 지식 볼트 방식</span></div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:0;">
+            <div style="padding:14px 16px; border-right:1px solid var(--paper-2);">
+              <div style="font-family:var(--mono); font-size:11px; font-weight:700; color:var(--danger); margin-bottom:8px;">❌ 기존 방식</div>
+              <ul style="margin:0; padding-left:18px; font-size:13px; line-height:2; color:var(--ink-soft);">
+                <li>프로젝트 완료 → 폴더 보관 → 잊어버림</li>
+                <li>비슷한 프로젝트가 오면 <b>처음부터 다시</b></li>
+                <li>"예전에 비슷한 거 했는데…" 기억에 의존</li>
+                <li>노하우가 개인 머릿속에만 존재</li>
+              </ul>
+            </div>
+            <div style="padding:14px 16px;">
+              <div style="font-family:var(--mono); font-size:11px; font-weight:700; color:var(--approve); margin-bottom:8px;">✅ 지식 볼트 방식</div>
+              <ul style="margin:0; padding-left:18px; font-size:13px; line-height:2; color:var(--ink-soft);">
+                <li>완료 즉시 → AI가 인사이트 자동 추출</li>
+                <li>다음 프로젝트에서 <b>AI가 과거 지식 즉시 제공</b></li>
+                <li><code class="kbd">/query</code> 한 번으로 관련 노하우 소환</li>
+                <li>회사 전체 자산으로 축적·공유</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size:13.5px; margin:14px 0 8px;"><b>4종 지식 노트</b> — 프로젝트에서 추출하는 지식의 형태</p>
+        <div class="kv-types">
+          <div class="kv-type lesson">
+            <span class="kv-type__tag">Lesson · 교훈</span>
+            <p class="kv-type__q">무엇이 통했고 무엇이 실패했나?</p>
+            <p class="kv-type__ex">"임원교육은 첫 10분을 사례로 시작해야 몰입도가 오른다"</p>
+          </div>
+          <div class="kv-type playbook">
+            <span class="kv-type__tag">Playbook · 절차</span>
+            <p class="kv-type__q">다음에 또 하려면 어떤 순서로?</p>
+            <p class="kv-type__ex">"A동 골조 공사 착수 전 체크리스트 7단계"</p>
+          </div>
+          <div class="kv-type asset">
+            <span class="kv-type__tag">Asset · 재사용 자산</span>
+            <p class="kv-type__q">그대로 복사해 쓸 수 있는 건?</p>
+            <p class="kv-type__ex">견적서 템플릿, 시방서 문구, 커밋 메시지 패턴</p>
+          </div>
+          <div class="kv-type decision">
+            <span class="kv-type__tag">Decision · 의사결정</span>
+            <p class="kv-type__q">왜 그 선택을 했나?</p>
+            <p class="kv-type__ex">"외주 대신 내재화를 택한 이유와 트레이드오프"</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 워크플로우 카드 ── -->
+    <div class="task" data-task="t45-workflow">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 7-2 · 워크플로우</div>
+          <p class="task__title">Capture → Extract → Compile → Reuse 4단계 흐름</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="kv-pipeline">
+          <div class="kv-step">
+            <div class="kv-step__cmd">/capture</div>
+            <p class="kv-step__title">① Capture</p>
+            <p class="kv-step__desc">완성 프로젝트 자료를 <code class="kbd">10. Projects/</code>로 정리. 원천 자료 보존.</p>
+          </div>
+          <div class="kv-step">
+            <div class="kv-step__cmd">/extract</div>
+            <p class="kv-step__title">② Extract</p>
+            <p class="kv-step__desc">AI가 재사용 지식 후보 도출 → <b>사용자 확정</b> 후 진행</p>
+          </div>
+          <div class="kv-step">
+            <div class="kv-step__cmd">/compile</div>
+            <p class="kv-step__title">③ Compile</p>
+            <p class="kv-step__desc">후보를 자급자족 지식 노트로 작성. Obsidian에서 열람 가능.</p>
+          </div>
+          <div class="kv-step">
+            <div class="kv-step__cmd">/query</div>
+            <p class="kv-step__title">④ Reuse</p>
+            <p class="kv-step__desc">새 업무 시작 시 과거 지식 검색·적용. 재사용 횟수 자동 누적.</p>
+          </div>
+        </div>
+
+        <p style="font-size:13.5px; margin:4px 0 8px;"><b>Claude Code에서 실제로 실행하는 법</b></p>
+        <div class="slip">
+          <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 Claude Code (슬래시 커맨드)</span><button class="slip__copy">복사</button></div>
+          <p class="slip__text">/capture
+# → 00. Inbox의 자료를 10. Projects/로 자동 정리</p>
+        </div>
+        <div class="slip">
+          <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 Claude Code</span><button class="slip__copy">복사</button></div>
+          <p class="slip__text">/extract
+# → AI가 Lesson·Playbook·Asset·Decision 후보를 나열
+# → 직원이 "1, 3, 5번 추출해줘" 처럼 확정</p>
+        </div>
+        <div class="slip">
+          <div class="slip__bar"><span class="slip__from">👤 직원 → 🤖 Claude Code (새 프로젝트 시작 시)</span><button class="slip__copy">복사</button></div>
+          <p class="slip__text">/query 아파트 로비 계단 설계 시 주의해야 할 점 알려줘
+# → 과거 프로젝트에서 추출된 관련 Lesson·Playbook을 즉시 제공</p>
+        </div>
+
+        <div class="note tip"><b>Claude Code가 없을 때</b> — Cursor·VS Code 등 다른 에디터에서는 슬래시 커맨드 대신 <b>"지식 정리해줘" / "이거 위키로 만들어줘"</b> 라고 자연어로 입력하면 동일한 파이프라인이 작동합니다.</div>
+      </div>
+    </div>
+
+    <!-- ── 원본 무결성 카드 ── -->
+    <div class="task" data-task="t45-tier">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 7-3 · 핵심 원칙</div>
+          <p class="task__title">원본 무결성 — 1차 지식과 AI 합성 지식을 섞지 않는다</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="note warn"><b>왜 중요한가</b> — AI가 기존 지식 노트들을 연결해 만든 답변을 그대로 저장하면, 원본과 2차 합성물이 뒤섞여 정보가 왜곡됩니다. 이를 막기 위해 모든 노트에 <code class="kbd">tier</code>를 붙입니다.</div>
+
+        <div class="eg-wrap" style="margin:12px 0;">
+          <div class="eg-head"><span class="eg-title">📊 tier 구분 — 지식의 신뢰도 계층</span></div>
+          <div style="padding:0;">
+            <div style="padding:13px 16px; border-bottom:1px solid var(--paper-2); display:flex; gap:12px; align-items:flex-start;">
+              <span class="tier primary">primary</span>
+              <div style="font-size:13.5px; line-height:1.65;">
+                <b>프로젝트에서 직접 추출한 1차 지식</b> — <code class="kbd">source:</code>로 원천 프로젝트를 링크.<br>
+                <span style="color:var(--ink-soft);">예) A아파트 공사에서 뽑아낸 "로비 계단 설계 교훈"</span>
+              </div>
+            </div>
+            <div style="padding:13px 16px; display:flex; gap:12px; align-items:flex-start;">
+              <span class="tier synth">synthesized</span>
+              <div style="font-size:13.5px; line-height:1.65;">
+                <b>여러 지식 노트를 AI로 합성한 2차 지식</b> — <code class="kbd">derived_from:</code>에 출처 노트 목록, <code class="kbd">status: draft</code> 표시.<br>
+                <span style="color:var(--ink-soft);">원본과 동급 권위 아님 — 검증 전엔 보조 참고로만 사용.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="note tip"><b>승격 조건</b> — <code class="tier synth" style="font-size:10px; padding:1px 5px;">synthesized</code> 노트를 <code class="tier primary" style="font-size:10px; padding:1px 5px;">primary</code>로 격상하려면, 다른 지식 노트가 아닌 <b>실제 원천 프로젝트와 재대조</b>해 검증 후 <code class="kbd">/promote</code> 커맨드를 사용합니다. AI 합성물이 파생물을 낳는 드리프트를 원천 차단합니다.</div>
+      </div>
+    </div>
+
+    <!-- ── 레포 클론 카드 ── -->
+    <div class="task" data-task="t45-clone">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">STEP 7-4 · 시작하기</div>
+          <p class="task__title">지식 볼트 템플릿 클론 & Obsidian으로 열기</p>
+        </div>
+      </div>
+      <div class="task__detail">
+
+        <!-- 지식 볼트 레포 배너 (자주빛 테마) -->
+        <div class="repobox" style="border-color:#7B52AB; box-shadow:0 0 0 4px rgba(123,82,171,.1), var(--shadow);">
+          <div class="repobox__head" style="background:#7B52AB;">
+            <span class="repobox__icon">🧠</span>
+            <div class="repobox__ht">
+              <span class="repobox__title">지식 위키 볼트 템플릿 — 빈 골격, 바로 사용 가능</span>
+              <span class="repobox__sub">github.com/kkh2114/knowledge-vault-template · Obsidian + AI · 데이터 없음 · 안전 공유</span>
+            </div>
+          </div>
+          <div class="repobox__body">
+            <p class="repobox__why">
+              이 레포는 <b>knowledge-vault 시스템의 빈 골격</b>입니다. 폴더 구조·지침 문서(KNOWLEDGE.md·CLAUDE.md·AGENTS.md)·슬래시 커맨드 5종·Lint 스크립트가 모두 들어 있어, <b>클론 후 Obsidian에서 열고 프로젝트 자료를 넣기만 하면</b> 즉시 운영됩니다.<br>
+              <span class="wr">실제 프로젝트 데이터·도면·견적서는 포함되지 않습니다.</span>
+            </p>
+            <div class="repobox__grid">
+              <div class="repobox__point">
+                <span class="pi">📁</span>
+                <div><b>폴더 구조 포함</b>00.Inbox / 10.Projects / 20.Knowledge / 90.Settings 4개 폴더 + 템플릿 5종</div>
+              </div>
+              <div class="repobox__point">
+                <span class="pi">⚡</span>
+                <div><b>슬래시 커맨드 5종</b>/capture·/extract·/compile·/query·/promote — Claude Code에서 바로 실행</div>
+              </div>
+              <div class="repobox__point">
+                <span class="pi">🔍</span>
+                <div><b>Lint 스크립트</b>node lint.mjs 한 줄로 볼트 건강 점검 — 깨진 링크·출처 누락 자동 감지</div>
+              </div>
+              <div class="repobox__point">
+                <span class="pi">🌐</span>
+                <div><b>다중 엔진 지원</b>Claude Code·Codex·Gemini 어느 AI 에디터에서도 동일하게 작동</div>
+              </div>
+            </div>
+            <div class="repobox__actions">
+              <a class="repo-btn primary" href="https://github.com/kkh2114/knowledge-vault-template" target="_blank" rel="noopener" style="background:#7B52AB; box-shadow:0 2px 8px rgba(123,82,171,.3);">
+                🧠 GitHub 레포 열기 ↗
+              </a>
+              <a class="repo-btn secondary" href="https://github.com/kkh2114/knowledge-vault-template/archive/refs/heads/main.zip" target="_blank" rel="noopener">
+                📥 ZIP으로 다운로드
+              </a>
+            </div>
+            <div class="repobox__clone" style="margin-top:14px;">
+              <div class="cmdblock" data-cmd="git clone https://github.com/kkh2114/knowledge-vault-template.git ~/knowledge-vault">
+                <div class="cmdblock__bar" style="background:#2d1a4a;">
+                  <span class="cmdblock__label"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>&nbsp;터미널 · 클론 명령어 — 그대로 복사해서 실행</span>
+                  <button class="cmdblock__copy">복사</button>
+                </div>
+                <pre class="cmdblock__code" style="background:#1a0d2e;"><span class="prompt">$ </span><span class="cmd">git clone</span> <span class="val">https://github.com/kkh2114/knowledge-vault-template.git</span> <span class="flag">~/knowledge-vault</span>
+<span style="color:#5A8A6A;"># ~/knowledge-vault 폴더에 전체 구조가 내려받아집니다</span></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p style="font-size:13.5px; margin:4px 0 8px; font-weight:700;">📱 Obsidian에서 볼트 열기</p>
+        <div class="eg-wrap">
+          <div class="eg-row ok"><span class="eg-mark ok">1</span><code class="eg-msg">Obsidian 앱 실행 → File → Open folder as vault 클릭</code><span class="eg-cnt">필수</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">2</span><code class="eg-msg">클론한 ~/knowledge-vault 폴더를 선택</code><span class="eg-cnt">필수</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">3</span><code class="eg-msg">00. Inbox/ 에 완성된 프로젝트 파일을 넣기</code><span class="eg-cnt">시작</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">4</span><code class="eg-msg">같은 폴더에서 Claude Code 실행 → /capture → /extract → /compile</code><span class="eg-cnt">운영</span></div>
+        </div>
+
+        <div class="note tip" style="margin-top:12px;"><b>Obsidian이 없어도 됩니다</b> — 모든 파일은 순수 마크다운(.md)이라 VS Code·메모장으로도 열람 가능합니다. Obsidian은 위키링크와 그래프 뷰로 노트 간 연결을 시각화할 때 강력하게 빛납니다.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== 완료 도장 ========== -->
+  <section class="finale todo" id="finale">
+    <div class="seal">
+      <div class="seal__t">검수<br><span class="seal__big">마감</span></div>
+    </div>
+    <p class="finale__msg" id="finaleMsg"><b>0개</b>의 작업이 남았습니다. 위에서 하나씩 체크해 보세요.</p>
+  </section>
+
+
+
+</main>
+
+<footer>AX 기초세우기 › 데이터 생애주기 관리법 › 프로젝트 관리법 · 경영자의 AI</footer>
+
+<script>
+(function(){
+  "use strict";
+  var STORE_KEY = "km-edu-git-agent-v1";
+
+  // ---- guarded storage (artifact viewer에서도 절대 깨지지 않음) ----
+  var mem = {};
+  function loadState(){
+    try{ var raw = localStorage.getItem(STORE_KEY); return raw ? JSON.parse(raw) : {}; }
+    catch(e){ return mem.state || {}; }
+  }
+  function saveState(s){
+    mem.state = s;
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(s)); }catch(e){}
+  }
+
+  var state = loadState();              // { taskId:true, _path:"A"|"B" }
+  var fill = document.getElementById("gaugeFill");
+  var pctText = document.getElementById("pctText");
+  var countText = document.getElementById("countText");
+  var finale = document.getElementById("finale");
+  var finaleMsg = document.getElementById("finaleMsg");
+
+  // ---- 유형 A/B 경로: 같은 data-task가 양쪽에 존재하므로 보이는 것만 카운트 ----
+  function visibleTasks(){
+    return Array.prototype.filter.call(document.querySelectorAll(".task"), function(t){
+      return t.offsetParent !== null; // 숨겨진 pathbox 내부는 제외
+    });
+  }
+
+  function applyTaskState(){
+    document.querySelectorAll(".task").forEach(function(t){
+      var id = t.getAttribute("data-task");
+      var done = !!state[id];
+      t.classList.toggle("done", done);
+      var chk = t.querySelector(".check");
+      if(chk) chk.setAttribute("aria-checked", done ? "true" : "false");
+    });
+  }
+
+  function update(){
+    var tasks = visibleTasks();
+    var total = tasks.length;
+    var done = tasks.filter(function(t){ return state[t.getAttribute("data-task")]; }).length;
+    var pct = total ? Math.round(done/total*100) : 0;
+    fill.style.width = pct + "%";
+    pctText.textContent = pct + "%";
+    countText.textContent = done + " / " + total + " 완료";
+
+    var remain = total - done;
+    if(remain === 0 && total > 0){
+      finale.classList.remove("todo"); finale.classList.add("done");
+      finaleMsg.innerHTML = "<b>전 단계 마감 완료!</b> 이제 '최종_진짜최종.dwg'는 추방되었습니다. 🎉";
+    }else{
+      finale.classList.remove("done"); finale.classList.add("todo");
+      finaleMsg.innerHTML = "<b>" + remain + "개</b>의 작업이 남았습니다. 위에서 하나씩 체크해 보세요.";
+    }
+  }
+
+  function toggle(id){
+    if(state[id]) delete state[id]; else state[id] = true;
+    saveState(state); applyTaskState(); update();
+  }
+
+  // ---- 체크박스 (클릭 + 키보드) ----
+  document.querySelectorAll(".task").forEach(function(t){
+    var id = t.getAttribute("data-task");
+    var chk = t.querySelector(".check");
+    if(!chk) return;
+    chk.addEventListener("click", function(){ toggle(id); });
+    chk.addEventListener("keydown", function(e){
+      if(e.key === " " || e.key === "Enter"){ e.preventDefault(); toggle(id); }
+    });
+  });
+
+  // ---- 복사 버튼 ----
+  document.querySelectorAll(".slip").forEach(function(slip){
+    var btn = slip.querySelector(".slip__copy");
+    var txt = slip.querySelector(".slip__text");
+    if(!btn || !txt) return;
+    btn.addEventListener("click", function(){
+      var content = txt.textContent.trim();
+      function ok(){
+        var old = btn.textContent; btn.textContent = "복사됨 ✓"; btn.classList.add("ok");
+        setTimeout(function(){ btn.textContent = old; btn.classList.remove("ok"); }, 1400);
+      }
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(content).then(ok).catch(fallback);
+        }else{ fallback(); }
+      }catch(e){ fallback(); }
+      function fallback(){
+        try{
+          var ta = document.createElement("textarea");
+          ta.value = content; ta.style.position="fixed"; ta.style.opacity="0";
+          document.body.appendChild(ta); ta.select();
+          document.execCommand("copy"); document.body.removeChild(ta); ok();
+        }catch(e2){}
+      }
+    });
+  });
+
+  // ---- 터미널 명령어 블록 복사 ----
+  document.querySelectorAll(".cmdblock").forEach(function(block){
+    var btn = block.querySelector(".cmdblock__copy");
+    if(!btn) return;
+    var content = block.getAttribute("data-cmd") || block.querySelector(".cmdblock__code").textContent.replace(/^\$\s*/,"").trim();
+    btn.addEventListener("click", function(){
+      function ok(){
+        var old = btn.textContent; btn.textContent = "복사됨 ✓"; btn.classList.add("ok");
+        setTimeout(function(){ btn.textContent = old; btn.classList.remove("ok"); }, 1400);
+      }
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(content).then(ok).catch(fb);
+        }else{ fb(); }
+      }catch(e){ fb(); }
+      function fb(){
+        try{
+          var ta = document.createElement("textarea");
+          ta.value = content; ta.style.position="fixed"; ta.style.opacity="0";
+          document.body.appendChild(ta); ta.select();
+          document.execCommand("copy"); document.body.removeChild(ta); ok();
+        }catch(e2){}
+      }
+    });
+  });
+
+  // ---- 수칙 2 · .gitignore 프롬프트 복사 ----
+  document.querySelectorAll(".rule__agent").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var content = btn.getAttribute("data-prompt") || "";
+      function ok(){
+        var old = btn.textContent; btn.textContent = "복사됨 ✓"; btn.classList.add("ok");
+        setTimeout(function(){ btn.textContent = old; btn.classList.remove("ok"); }, 1400);
+      }
+      try{
+        if(navigator.clipboard && navigator.clipboard.writeText){
+          navigator.clipboard.writeText(content).then(ok).catch(fb);
+        }else{ fb(); }
+      }catch(e){ fb(); }
+      function fb(){
+        try{
+          var ta = document.createElement("textarea");
+          ta.value = content; ta.style.position="fixed"; ta.style.opacity="0";
+          document.body.appendChild(ta); ta.select();
+          document.execCommand("copy"); document.body.removeChild(ta); ok();
+        }catch(e2){}
+      }
+    });
+  });
+
+  // ---- 유형 A/B 전환 ----
+  var opts = document.querySelectorAll(".opt");
+  function setPath(p){
+    state._path = p; saveState(state);
+    opts.forEach(function(o){
+      var on = o.getAttribute("data-path") === p;
+      o.classList.toggle("active", on);
+      o.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    document.querySelectorAll(".pathbox").forEach(function(b){
+      b.classList.toggle("show", b.getAttribute("data-path") === p);
+    });
+    update(); // 보이는 task 변경 → 진행률 재계산
+  }
+  opts.forEach(function(o){
+    o.addEventListener("click", function(){ setPath(o.getAttribute("data-path")); });
+  });
+
+  // ---- 초기화 ----
+  document.getElementById("resetBtn").addEventListener("click", function(){
+    if(confirm("진행 기록을 모두 초기화할까요? (체크 표시가 사라집니다)")){
+      state = {}; saveState(state); setPath("A"); applyTaskState(); update();
+    }
+  });
+
+  // ---- OS 토글 ----
+  var osTabs = document.querySelectorAll(".os-tab");
+  var osNote = document.getElementById("osNote");
+  function setOS(os){
+    state._os = os; saveState(state);
+    document.body.classList.toggle("os-win", os === "win");
+    document.body.classList.toggle("os-mac", os === "mac");
+    osTabs.forEach(function(t){
+      var on = t.getAttribute("data-os") === os;
+      t.classList.toggle("active", on);
+      t.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+    // os-hint 배너 안 버튼 — 현재 선택된 쪽은 dim
+    document.querySelectorAll(".os-hint__btn").forEach(function(b){
+      var isCur = b.getAttribute("data-os") === os;
+      b.style.opacity = isCur ? "0.4" : "1";
+      b.style.cursor  = isCur ? "default" : "pointer";
+    });
+    if(osNote){
+      osNote.style.display = "inline";
+      osNote.textContent = os === "win"
+        ? "🪟 Windows 모드 — 경로·단축키가 Windows 기준으로 표시됩니다"
+        : "🍎 macOS 모드 — 경로·단축키가 Mac 기준으로 표시됩니다";
+    }
+    update();
+  }
+  osTabs.forEach(function(t){
+    t.addEventListener("click", function(){ setOS(t.getAttribute("data-os")); });
+  });
+  // os-hint 배너 안 전환 버튼 (이벤트 위임)
+  document.addEventListener("click", function(e){
+    var btn = e.target.closest(".os-hint__btn");
+    if(btn){ setOS(btn.getAttribute("data-os")); }
+  });
+
+  // ---- 초기 렌더 ----
+  setPath(state._path === "B" ? "B" : "A");
+  setOS(state._os === "mac" ? "mac" : "win");
+  applyTaskState();
+  update();
+})();
+</script>
+</body>
+</html>
