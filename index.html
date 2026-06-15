@@ -1087,6 +1087,11 @@
                   <td style="padding:9px 14px; color:var(--ink-soft);">PART 3 지식 위키 시각화·그래프 뷰 — 없어도 VSCode로 열람 가능</td>
                 </tr>
                 <tr style="border-bottom:1px solid var(--paper-2);">
+                  <td style="padding:9px 14px; font-weight:700;">Raycast</td>
+                  <td style="padding:9px 14px;"><span style="background:var(--approve); color:#fff; font-family:var(--mono); font-size:10px; font-weight:800; border-radius:5px; padding:2px 7px;">권장</span></td>
+                  <td style="padding:9px 14px; color:var(--ink-soft);">번호 폴더·파일을 즉시 검색·이동 — 파일 시스템 관리·찾기 속도 향상</td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--paper-2);">
                   <td style="padding:9px 14px; font-weight:700;">Antigravity 2.0 CLI</td>
                   <td style="padding:9px 14px;"><span style="background:var(--blueprint); color:#fff; font-family:var(--mono); font-size:10px; font-weight:800; border-radius:5px; padding:2px 7px;">선택</span></td>
                   <td style="padding:9px 14px; color:var(--ink-soft);">Claude Code 대체 또는 병행 — Google Gemini 3.5 기반 에이전트</td>
@@ -1100,7 +1105,7 @@
             </table>
           </div>
         </div>
-        <div class="note tip" style="margin-top:10px;"><b>권장 설치 순서</b> — Git → GitHub 가입 & CLI → Node.js LTS → VS Code → Claude Code CLI → Obsidian 순서로 설치하면 의존성 충돌 없이 진행됩니다. Antigravity·Codex는 나중에 추가해도 됩니다.</div>
+        <div class="note tip" style="margin-top:10px;"><b>권장 설치 순서</b> — Git → GitHub 가입 & CLI → Node.js LTS → VS Code → Claude Code CLI → Obsidian → Raycast 순서로 설치하면 의존성 충돌 없이 진행됩니다. Raycast·Antigravity·Codex는 나중에 추가해도 됩니다.</div>
       </div>
     </div>
   </section>
@@ -1540,6 +1545,81 @@ npm -v">
           <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">Graph Analysis — 지식 노트 간 연결 강도 분석</code><span class="eg-cnt">선택</span></div>
         </div>
         <div class="note tip"><b>플러그인 설치법</b> — 설정 → 커뮤니티 플러그인 → 탐색 → 검색창에 이름 입력 → 설치 → 활성화. 각 플러그인 설정은 설치 후 플러그인 목록 → 옵션에서 개별 설정.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Raycast 설치 ── -->
+  <section class="stage">
+    <div class="stage__head">
+      <div class="stage__num" data-once="권장">RC</div>
+      <div class="stage__t">
+        <div class="stage__kicker">권장 · raycast.com</div>
+        <h2 class="stage__name">Raycast — 파일·폴더 즉시 검색 & 실행 런처</h2>
+      </div>
+    </div>
+    <p class="stage__desc">단축키 한 번으로 <b>번호 폴더·파일을 즉시 검색·이동</b>하는 런처입니다. 이 교안의 Johnny-Decimal 번호 폴더 구조(<code class="kbd">1-process</code>·<code class="kbd">11-research</code> 등)를 마우스 없이 빠르게 오갈 수 있어, 파일 시스템 <b>관리·찾기·실행</b> 속도가 크게 빨라집니다. <b>개인 사용 무료</b>.</p>
+
+    <div class="task" data-task="tp-raycast">
+      <div class="task__top">
+        <div class="check" tabindex="0" role="checkbox" aria-checked="false" aria-label="작업 완료 체크">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="task__body">
+          <div class="task__label">INSTALL · Raycast</div>
+          <p class="task__title">Raycast 설치 & 런처 단축키 설정 & 폴더 검색 세팅</p>
+        </div>
+      </div>
+      <div class="task__detail">
+        <div class="repobox" style="border-color:#FF6363; box-shadow:0 0 0 4px rgba(255,99,99,.08), var(--shadow);">
+          <div class="repobox__head" style="background:#FF6363;">
+            <span class="repobox__icon">🚀</span>
+            <div class="repobox__ht">
+              <span class="repobox__title">Raycast 공식 다운로드</span>
+              <span class="repobox__sub">raycast.com · macOS 정식 · Windows 베타 지원</span>
+            </div>
+          </div>
+          <div class="repobox__body">
+            <div class="repobox__actions">
+              <a class="repo-btn primary" href="https://www.raycast.com/" target="_blank" rel="noopener" style="background:#FF6363; box-shadow:0 2px 8px rgba(255,99,99,.3);">🚀 raycast.com 다운로드 ↗</a>
+              <a class="repo-btn secondary" href="https://manual.raycast.com/" target="_blank" rel="noopener">사용 설명서 ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="mac-only">
+          <p style="font-size:13.5px; margin:14px 0 6px; font-weight:700;">🍎 macOS 설치 (둘 중 택1)</p>
+          <ol>
+            <li>Homebrew가 있다면: <code class="kbd">brew install --cask raycast</code></li>
+            <li>또는 <code class="kbd">raycast.com</code> → Download → <code class="kbd">.dmg</code> 실행 → 응용 프로그램에 드래그</li>
+            <li>첫 실행 시 <b>접근성·전체 디스크 접근 권한</b> 허용 (파일 검색에 필요)</li>
+          </ol>
+          <div class="note tip" style="margin-top:8px;"><b>Spotlight 대체 설정</b> — 시스템 설정 → 키보드 → 단축키 → Spotlight의 <code class="kbd">⌘ + Space</code>를 끈 뒤, Raycast 환경설정에서 핫키를 <code class="kbd">⌘ + Space</code>로 지정하면 기존 손버릇 그대로 사용 가능합니다.</div>
+        </div>
+        <div class="win-only">
+          <p style="font-size:13.5px; margin:14px 0 6px; font-weight:700;">🪟 Windows 설치</p>
+          <ol>
+            <li><code class="kbd">raycast.com/windows</code> → Windows 베타 설치 파일 다운로드·실행</li>
+            <li>설치 후 런처 핫키를 <code class="kbd">Alt + Space</code>로 지정</li>
+          </ol>
+          <div class="note warn" style="margin-top:8px;"><b>참고</b> — Raycast는 macOS가 정식 플랫폼이고 Windows는 베타입니다. Windows에서 안정적인 대체 런처가 필요하면 <b>PowerToys Run</b>(<code class="kbd">Alt + Space</code>) 또는 <b>Flow Launcher</b>를 사용해도 파일·폴더 검색 목적은 동일하게 달성됩니다.</div>
+        </div>
+
+        <p style="font-size:13.5px; margin:14px 0 6px; font-weight:700;">⚡ 이 교안 파일 시스템에 바로 쓰는 핵심 기능</p>
+        <div class="eg-wrap">
+          <div class="eg-row ok"><span class="eg-mark ok">1</span><code class="eg-msg">"Search Files" — 파일명 일부만 입력해도 PC 전체에서 파일 즉시 검색·열기</code><span class="eg-cnt">파일 찾기</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">2</span><code class="eg-msg">번호로 폴더 점프 — "1311" 입력 → 해당 번호 폴더 바로 열기 (Johnny-Decimal 최적)</code><span class="eg-cnt">폴더 이동</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">3</span><code class="eg-msg">Clipboard History — 복사한 「직원 프롬프트」를 기록에서 다시 꺼내 재사용</code><span class="eg-cnt">프롬프트 재사용</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">4</span><code class="eg-msg">Snippets — 자주 쓰는 경로·명령·프롬프트를 짧은 키워드로 자동 입력</code><span class="eg-cnt">반복 입력 절약</span></div>
+        </div>
+
+        <p style="font-size:13.5px; margin:14px 0 6px; font-weight:700;">🔖 권장 세팅 — 자주 쓰는 폴더를 Quicklink로 즐겨찾기</p>
+        <div class="eg-wrap">
+          <div class="eg-row ok"><span class="eg-mark ok">★</span><code class="eg-msg">Raycast → "Create Quicklink" → 작업 루트(예: ~/work/1-process) 등록 → 별칭 부여</code><span class="eg-cnt">한 번 설정</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">★</span><code class="eg-msg">자주 여는 단계 폴더(inbox·outputs 등)에 별칭(alias)·핫키 지정 → 두 글자로 즉시 이동</code><span class="eg-cnt">즉시 이동</span></div>
+          <div class="eg-row ok"><span class="eg-mark ok">✓</span><code class="eg-msg">Extensions Store에서 "Visual Studio Code"·"GitHub"·"Obsidian" 확장 설치 → 런처에서 바로 열기</code><span class="eg-cnt">도구 연동</span></div>
+        </div>
+        <div class="note tip"><b>활용 흐름</b> — <code class="kbd">⌘/Alt + Space</code>로 Raycast 열기 → 폴더 번호나 파일명 입력 → Enter로 즉시 열기. 마우스로 탐색기를 헤맬 필요 없이 이 교안의 번호 폴더 구조를 키보드만으로 관리할 수 있습니다.</div>
       </div>
     </div>
   </section>
