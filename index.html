@@ -235,6 +235,45 @@
   .sec.cur .no{color:#BBD2E6;}
   .sec.soon{border-style:dashed; color:#A79E8C; background:transparent;}
 
+  /* ===== PART 고정 내비게이션 (항상 보임) ===== */
+  .partnav{
+    position:sticky; top:95px; z-index:48;
+    background:rgba(250,248,243,.92);
+    backdrop-filter:saturate(140%) blur(10px);
+    border-bottom:1px solid var(--line);
+    box-shadow:0 3px 12px -7px rgba(22,49,73,.4);
+  }
+  .partnav__in{
+    max-width:880px; margin:0 auto; padding:8px 22px;
+    display:flex; align-items:center; gap:8px;
+    overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch;
+  }
+  .partnav__in::-webkit-scrollbar{display:none;}
+  .partnav__lbl{
+    font-family:var(--mono); font-size:10px; font-weight:700;
+    color:var(--ink-soft); letter-spacing:.03em; white-space:nowrap; flex:none;
+  }
+  .pnav{
+    flex:none; display:inline-flex; align-items:center; gap:6px;
+    font-size:12.5px; font-weight:700; border-radius:8px; padding:6px 12px;
+    border:1px solid var(--line); background:#fff; color:var(--ink-soft);
+    text-decoration:none; white-space:nowrap; transition:.15s; cursor:pointer;
+  }
+  .pnav .no{font-family:var(--mono); font-size:10px;}
+  .pnav:hover{transform:translateY(-1px); box-shadow:var(--shadow);}
+  .pnav[data-p="0"]{border-color:#1C6B3A; color:#1C6B3A;}
+  .pnav[data-p="1"]{border-color:var(--blueprint); color:var(--blueprint);}
+  .pnav[data-p="2"]{border-color:var(--amber); color:var(--amber);}
+  .pnav[data-p="3"]{border-color:#7B52AB; color:#7B52AB;}
+  .pnav.active[data-p="0"]{background:#1C6B3A; color:#fff;}
+  .pnav.active[data-p="1"]{background:var(--blueprint); color:#fff;}
+  .pnav.active[data-p="2"]{background:var(--amber); color:#fff;}
+  .pnav.active[data-p="3"]{background:#7B52AB; color:#fff;}
+  .pnav.active .no{color:rgba(255,255,255,.72);}
+  @media(max-width:600px){ .partnav__lbl{display:none;} }
+  /* 고정 바 높이만큼 앵커 점프 보정 */
+  [id^="part"]{scroll-margin-top:150px;}
+
   /* 더 이상 쓰지 않지만 혹시 남아있는 옛 스타일 무력화 */
   h1 .strike{
     color:var(--ink-soft); text-decoration:line-through;
@@ -871,6 +910,17 @@
     <span class="os-note" id="osNote">선택하면 교안 전체의 경로·단축키가 자동으로 바뀝니다</span>
   </div>
 </div>
+
+<!-- ===== PART 고정 내비게이션 (스크롤해도 항상 보임) ===== -->
+<nav class="partnav" id="partNav" aria-label="단원 이동">
+  <div class="partnav__in">
+    <span class="partnav__lbl">단원 이동 :</span>
+    <a class="pnav" data-p="0" href="#part0"><span class="no">PART 0</span> 도구 설치</a>
+    <a class="pnav" data-p="1" href="#part1"><span class="no">PART 1</span> 시스템 구축</a>
+    <a class="pnav" data-p="2" href="#part2"><span class="no">PART 2</span> Git 관리</a>
+    <a class="pnav" data-p="3" href="#part3"><span class="no">PART 3</span> LLM 위키</a>
+  </div>
+</nav>
 
 <!-- ===== HERO ===== -->
 <section class="hero">
@@ -3533,6 +3583,31 @@ test -L .claude/skills/business-folder-creator && echo 'skill link OK'">
   setOS(state._os === "mac" ? "mac" : "win");
   applyTaskState();
   update();
+})();
+</script>
+
+<!-- ===== PART 고정 내비 스크롤 스파이 ===== -->
+<script>
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('.pnav'));
+  if(!links.length) return;
+  var sections = links.map(function(a){
+    return document.getElementById(a.getAttribute('href').slice(1));
+  });
+  function setActive(idx){
+    links.forEach(function(a,i){ a.classList.toggle('active', i===idx); });
+  }
+  function onScroll(){
+    var probe = 170; // 고정 바 아래 기준선
+    var current = 0;
+    for(var i=0;i<sections.length;i++){
+      if(sections[i] && sections[i].getBoundingClientRect().top <= probe) current = i;
+    }
+    setActive(current);
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', onScroll, {passive:true});
+  onScroll();
 })();
 </script>
 </body>
